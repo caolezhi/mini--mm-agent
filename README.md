@@ -132,40 +132,619 @@ mini--mm-agent/
 
 ---
 
-# 第 1 章：Windows + WSL + VSCode
+# 第 1 章：Windows + WSL + VSCode —— 先把开发环境接通
 
 > **本章目标**：让 Windows 上的 VSCode 真正连接到 WSL Ubuntu。  
-> **完成效果**：VSCode 左下角出现 `WSL: Ubuntu`，终端路径位于 `/home/...`。  
-> **核心知识**：WSL、Linux 文件系统、远程开发。
+> **完成效果**：VSCode 左下角显示 `WSL: Ubuntu...`，新开的终端路径是 `/home/...`。  
+> **核心知识**：Windows 与 WSL 的关系、Linux 文件系统、VSCode 远程开发。
 
-## 为什么这样配置？
+这一章暂时不会写 Agent，也不会安装 FastAPI。
 
-你可以把现在的开发环境理解成：
+我们只解决一个最基础的问题：
+
+> **以后我们到底在哪台“环境”里写代码和运行 Python？**
+
+如果这个问题一开始没有搞清楚，后面很容易出现：
+
+```text
+Python 明明安装了，VSCode 却找不到
+pip 明明装了包，运行时却说不存在
+项目文件一会儿在 C:\，一会儿在 /home
+终端命令在 Windows 能用，在 Ubuntu 又不能用
+```
+
+所以第一章先把地基打稳。
+
+## 1.1 先理解我们要搭的环境
+
+你的电脑是 Windows，但我们希望开发环境长这样：
 
 ```text
 Windows
-└── VSCode 图形界面
-      ↓ 连接
-WSL Ubuntu
-├── 项目文件
-├── Python
-├── Git
-└── Terminal
+│
+├── VSCode 图形界面
+│     ↓ 通过 WSL 扩展连接
+│
+└── WSL Ubuntu
+      ├── 项目文件
+      ├── Python
+      ├── pip
+      ├── Git
+      └── Terminal
 ```
 
-这样做的好处是，后面 FastAPI、Shell、Python、数据库和部署环境都更接近真实 Linux 服务器。
+这里最容易产生的误解是：
 
-## 操作
+> “VSCode 装在 Windows，那 Python 是不是也一定跑在 Windows？”
 
-在 Windows 的 VSCode 安装微软官方扩展：
+不是。
+
+VSCode 可以把界面运行在 Windows，同时把**当前工作区、终端、Python 扩展和程序执行环境**放在 WSL Ubuntu 中。
+
+你可以把 VSCode 想成一个“遥控器”：
+
+```text
+VSCode 窗口在 Windows
+        ↓
+实际操作的是 Ubuntu 中的项目
+```
+
+这对后面的 Agent 项目很方便，因为真实服务器绝大多数也是 Linux 环境。
+
+---
+
+## 1.2 安装 VSCode 的 WSL 扩展
+
+打开 Windows 上的 VSCode。
+
+左侧点击 **Extensions（扩展）**，或者按：
+
+```text
+Ctrl + Shift + X
+```
+
+搜索：
 
 ```text
 WSL
-Python
-Pylance
 ```
 
-然后按：
+安装 Microsoft 官方的 **WSL** 扩展。
+
+> 不要看到名字里有 WSL 的第三方扩展就随便装。初学阶段尽量使用 Microsoft 官方扩展。
+
+安装完成后按：
+
+```text
+Ctrl + Shift + P
+```
+
+这会打开 VSCode 的 **Command Palette（命令面板）**。
+
+搜索：
+
+```text
+WSL: Connect to WSL
+```
+
+选择你的 Ubuntu，例如：
+
+```text
+Ubuntu-24.04
+```
+
+VSCode 会重新打开一个窗口。
+
+### 正常情况下你应该看到什么？
+
+VSCode 左下角会出现类似：
+
+```text
+WSL: Ubuntu-24.04
+```
+
+看到这一行非常重要，它说明：
+
+> **当前 VSCode 窗口已经进入 WSL 模式。**
+
+---
+
+## 1.3 打开 WSL Terminal
+
+在这个已经连接 WSL 的 VSCode 窗口里，点击：
+
+```text
+Terminal → New Terminal
+```
+
+或者使用快捷键打开终端。
+
+你可能看到类似：
+
+```text
+lezhi@DESKTOP-XXXXXXX:~$
+```
+
+这里：
+
+```text
+lezhi
+→ Ubuntu 用户名
+
+DESKTOP-XXXXXXX
+→ 电脑名称
+
+~
+→ 当前位于自己的 Home 目录
+```
+
+输入：
+
+```bash
+pwd
+```
+
+`pwd` 是 **print working directory**，意思是：
+
+> 告诉我“我现在在哪个目录”。
+
+正常应该看到类似：
+
+```text
+/home/lezhi
+```
+
+你的用户名不同没关系，例如：
+
+```text
+/home/alice
+/home/tom
+```
+
+都正常。
+
+### 如果看到的是 `C:\...` 呢？
+
+例如：
+
+```text
+C:\Users\xxx
+```
+
+那说明你当前开的还是 Windows Terminal，而不是 WSL Ubuntu Terminal。
+
+先不要继续后面的步骤，回去确认 VSCode 左下角是否真的显示：
+
+```text
+WSL: Ubuntu...
+```
+
+---
+
+## 1.4 检查 Ubuntu 中有没有 Python
+
+继续在 WSL Terminal 输入：
+
+```bash
+python3 --version
+```
+
+例如：
+
+```text
+Python 3.12.3
+```
+
+版本数字不需要和这里一模一样。
+
+本教程建议：
+
+```text
+Python 3.10+
+```
+
+如果命令能正常显示版本，就可以继续。
+
+再检查 Git：
+
+```bash
+git --version
+```
+
+应该看到类似：
+
+```text
+git version 2.x.x
+```
+
+---
+
+## 1.5 为什么项目建议放在 `/home/...`，而不是 `/mnt/c/...`？
+
+WSL 可以访问 Windows 磁盘，例如：
+
+```text
+/mnt/c/Users/...
+```
+
+但本教程建议把项目直接建在：
+
+```text
+/home/你的用户名/
+```
+
+例如：
+
+```text
+/home/lezhi/mini--mm-agent
+```
+
+原因很简单：
+
+- 文件权限更像正常 Linux；
+- Python 虚拟环境更稳定；
+- 大量小文件读写通常更自然；
+- 路径更简单；
+- 将来部署 Linux 服务器时思维一致。
+
+这不是说 `/mnt/c` 绝对不能用，而是**初学阶段尽量减少额外变量**。
+
+---
+
+## 1.6 安装 Python 扩展时，为什么还要注意“安装到 WSL”？
+
+很多人第一次会遇到：
+
+```text
+明明 Windows VSCode 已经安装 Python 扩展
+为什么 WSL 里面还是没有 Python: Select Interpreter？
+```
+
+原因是：
+
+```text
+Windows VSCode 环境
+和
+WSL VSCode 环境
+```
+
+可以拥有不同的扩展状态。
+
+在连接 WSL 后打开 Extensions，搜索 Microsoft 官方：
+
+```text
+Python
+```
+
+如果按钮显示：
+
+```text
+Install in WSL: Ubuntu-24.04
+```
+
+就点击安装。
+
+后面我们选择虚拟环境时会用到它。
+
+---
+
+## 1.7 本章完成后的检查清单
+
+现在先不要急着进入下一章。
+
+确认下面四件事都成立：
+
+```text
+[ ] VSCode 左下角显示 WSL: Ubuntu
+[ ] pwd 输出 /home/你的用户名
+[ ] python3 --version 能看到 Python 版本
+[ ] git --version 能正常输出
+```
+
+如果这四个都正常，你的开发环境第一层就接通了。
+
+### 本章小练习
+
+分别运行：
+
+```bash
+pwd
+whoami
+ls
+```
+
+尝试自己解释：
+
+```text
+pwd
+→ 我现在在哪里？
+
+whoami
+→ 当前 Ubuntu 用户是谁？
+
+ls
+→ 当前目录里有什么？
+```
+
+### 你现在应该能回答
+
+> VSCode 明明安装在 Windows 上，为什么我们仍然可以说“Python 在 Ubuntu 中运行”？
+
+如果你能用自己的话解释清楚，再进入第 2 章。
+
+---
+
+# 第 2 章：创建项目与 Python 虚拟环境 —— 给项目一个独立的小房间
+
+> **本章目标**：在 Ubuntu 的 Home 目录创建项目，并为它创建独立 Python 虚拟环境。  
+> **完成效果**：终端前出现 `(.venv)`，`which python` 指向当前项目里的 `.venv/bin/python`。  
+> **核心知识**：项目目录、`venv`、依赖隔离、Python Interpreter。
+
+这一章要解决的问题是：
+
+> **为什么不直接用系统 Python，而要专门创建 `.venv`？**
+
+---
+
+## 2.1 创建项目目录
+
+确认你现在仍然在 WSL Terminal。
+
+先回到自己的 Home：
+
+```bash
+cd ~
+```
+
+然后创建项目：
+
+```bash
+mkdir mini--mm-agent
+```
+
+进入项目：
+
+```bash
+cd mini--mm-agent
+```
+
+确认位置：
+
+```bash
+pwd
+```
+
+应该类似：
+
+```text
+/home/yourname/mini--mm-agent
+```
+
+例如：
+
+```text
+/home/lezhi/mini--mm-agent
+```
+
+此时这个目录还是空的。
+
+运行：
+
+```bash
+ls -a
+```
+
+你大概率只会看到：
+
+```text
+.  ..
+```
+
+这里：
+
+```text
+.
+→ 当前目录
+
+..
+→ 上一级目录
+```
+
+---
+
+## 2.2 为什么需要虚拟环境？
+
+假设你的电脑以后有两个 Python 项目：
+
+```text
+项目 A
+需要某个库 1.x
+
+项目 B
+需要同一个库 2.x
+```
+
+如果所有库都安装进系统 Python：
+
+```text
+Ubuntu 的同一个 Python
+├── 项目 A 的包
+├── 项目 B 的包
+├── 其他实验安装的包
+└── 越来越乱
+```
+
+很容易出现版本冲突。
+
+而虚拟环境相当于：
+
+```text
+mini--mm-agent/
+└── .venv/
+    ├── 自己的 python
+    ├── 自己的 pip
+    └── 自己安装的第三方库
+```
+
+所以不同项目可以各用各的。
+
+---
+
+## 2.3 创建 `.venv`
+
+在项目根目录执行：
+
+```bash
+python3 -m venv .venv
+```
+
+这条命令可以拆开理解：
+
+```text
+python3
+→ 使用 Python 3
+
+-m venv
+→ 运行 Python 自带的 venv 模块
+
+.venv
+→ 把虚拟环境创建在当前目录的 .venv 文件夹
+```
+
+如果成功，通常**不会输出“创建成功”**。
+
+这很正常。
+
+检查：
+
+```bash
+ls -a
+```
+
+现在应该多出：
+
+```text
+.venv
+```
+
+### 如果出现 `No module named venv` 或相关错误
+
+Ubuntu 可能缺少 venv 包。
+
+执行：
+
+```bash
+sudo apt update
+sudo apt install python3-venv
+```
+
+然后重新运行：
+
+```bash
+python3 -m venv .venv
+```
+
+---
+
+## 2.4 激活虚拟环境
+
+执行：
+
+```bash
+source .venv/bin/activate
+```
+
+成功后终端前面通常会出现：
+
+```text
+(.venv)
+```
+
+例如：
+
+```text
+(.venv) lezhi@DESKTOP-XXXX:~/mini--mm-agent$
+```
+
+### `source` 是什么意思？
+
+这里不用死记 Linux 原理。
+
+你可以先理解成：
+
+> 让当前 Terminal 开始使用 `.venv` 里面提供的 Python 环境。
+
+---
+
+## 2.5 确认现在到底用了哪个 Python
+
+执行：
+
+```bash
+which python
+```
+
+正确结果应该类似：
+
+```text
+/home/yourname/mini--mm-agent/.venv/bin/python
+```
+
+再执行：
+
+```bash
+python --version
+```
+
+注意：
+
+激活 `.venv` 以后，我们后面通常就可以写：
+
+```bash
+python
+pip
+```
+
+而不必每次都写：
+
+```bash
+python3
+```
+
+再看看 pip：
+
+```bash
+which pip
+pip --version
+```
+
+它也应该指向 `.venv`。
+
+---
+
+## 2.6 其他项目也有 `.venv`，名字一样会不会冲突？
+
+不会。
+
+因为名字一样，路径不同：
+
+```text
+/home/you/project-a/.venv
+/home/you/project-b/.venv
+/home/you/mini--mm-agent/.venv
+```
+
+真正决定你使用哪一个环境的是**完整路径**。
+
+所以 `.venv` 是非常常见的项目虚拟环境目录名。
+
+---
+
+## 2.7 让 VSCode 也使用这个 `.venv`
+
+Terminal 激活成功，不代表 VSCode 编辑器一定已经选择了同一个 Python。
+
+按：
 
 ```text
 Ctrl + Shift + P
@@ -174,165 +753,457 @@ Ctrl + Shift + P
 搜索：
 
 ```text
-WSL: Connect to WSL
+Python: Select Interpreter
 ```
 
-选择 Ubuntu。
-
-打开新的 VSCode Terminal：
-
-```bash
-pwd
-python3 --version
-```
-
-`pwd` 应该类似：
+选择类似：
 
 ```text
-/home/yourname
+.venv (Python 3.x)   ./.venv/bin/python
 ```
 
-如果看到的是 `C:\...`，说明你现在还是 Windows 终端，不是 WSL Terminal。
+如果你看到了：
 
-## 本章检查
+```text
+Workspace
+```
 
-你应该能解释：
+说明 VSCode 已经把这个解释器与当前项目关联。
 
-> VSCode 界面可以运行在 Windows，但当前项目和 Python 实际运行在 WSL Ubuntu 中。
+### 点击解释器后“没反应”正常吗？
+
+正常。
+
+VSCode 往往不会弹一个“选择成功”的大窗口。
+
+只要选择列表顶部显示：
+
+```text
+Selected Interpreter: ./.venv/bin/python
+```
+
+或者 VSCode 状态栏显示当前 Python 版本，就已经成功。
+
+### 如果搜不到 `Python: Select Interpreter`
+
+按顺序检查：
+
+1. 当前 VSCode 左下角是不是 `WSL: Ubuntu`；
+2. Microsoft Python 扩展是否安装在 WSL；
+3. Python 扩展是否显示 `Enable (Workspace)`，如果是就点击启用；
+4. 当前 Workspace 是否处于 Trusted 状态；
+5. 执行 `Developer: Reload Window` 后再搜索。
 
 ---
 
-# 第 2 章：创建项目与 Python 虚拟环境
+## 2.8 本章完成后的目录
 
-> **本章目标**：给项目创建独立 Python 环境。  
-> **完成效果**：终端前出现 `(.venv)`，`which python` 指向当前项目。  
-> **核心知识**：venv、依赖隔离、Python Interpreter。
+现在项目应该大概是：
 
-创建项目：
-
-```bash
-mkdir mini--mm-agent
-cd mini--mm-agent
+```text
+mini--mm-agent/
+└── .venv/
 ```
 
-创建虚拟环境：
+暂时不要往 `.venv` 里手动创建自己的代码。
 
-```bash
-python3 -m venv .venv
+`.venv` 是工具生成的环境目录，我们自己的源码会单独放在 `app/`。
+
+### 本章检查清单
+
+```text
+[ ] pwd 位于 /home/.../mini--mm-agent
+[ ] ls -a 能看到 .venv
+[ ] 终端前显示 (.venv)
+[ ] which python 指向项目里的 .venv/bin/python
+[ ] VSCode Select Interpreter 也选择了这个 .venv
 ```
 
-激活：
+### 本章小练习
+
+执行：
+
+```bash
+deactivate
+```
+
+观察终端前面的 `(.venv)` 消失。
+
+然后再：
 
 ```bash
 source .venv/bin/activate
 ```
 
-确认：
+重新激活。
 
-```bash
-which python
-```
+这样你会真正理解：
 
-应该类似：
+> `.venv` 并不是“开机以后永远自动生效”，而是当前 Terminal 可以进入或退出这个环境。
 
-```text
-/home/yourname/mini--mm-agent/.venv/bin/python
-```
+### 你现在应该能回答
 
-### 为什么每个项目都可以叫 `.venv`？
-
-因为真正路径不同：
-
-```text
-/home/you/project-a/.venv
-/home/you/project-b/.venv
-```
-
-所以互不影响。
-
-在 VSCode 中按：
-
-```text
-Ctrl + Shift + P
-→ Python: Select Interpreter
-→ ./.venv/bin/python
-```
-
-### 如果搜不到 `Python: Select Interpreter`
-
-先确认：
-
-1. Microsoft Python 扩展已经安装；
-2. 它是安装并启用在 WSL 环境，而不只是 Windows；
-3. 必要时执行 `Developer: Reload Window`。
+> 为什么两个项目都可以有一个叫 `.venv` 的目录，却不会互相影响？
 
 ---
 
-# 第 3 章：先运行最普通的 Python
+# 第 3 章：运行第一个 Python 文件 —— 先证明最基础的链路是通的
 
-> **本章目标**：验证 VSCode → WSL → `.venv` → Python 整条链路。  
+> **本章目标**：创建自己的源码目录，并运行第一个 Python 程序。  
 > **完成效果**：终端输出 `Hello Mini Agent`。  
-> **核心知识**：Python 文件、运行程序、逐层验证。
+> **核心知识**：源码目录、Python 文件、保存文件、逐层验证。
 
-创建：
+终于开始写代码了。
+
+不过这一章仍然不会写大模型。
+
+原因是我们希望先验证：
+
+```text
+VSCode 编辑文件
+↓
+文件保存在 WSL
+↓
+.venv 中的 Python 读取文件
+↓
+程序真的运行
+```
+
+---
+
+## 3.1 创建 `app` 目录
+
+确认虚拟环境已经激活：
+
+```text
+(.venv)
+```
+
+在项目根目录执行：
+
+```bash
+mkdir app
+```
+
+然后创建文件：
+
+```bash
+touch app/main.py
+```
+
+当然，你也可以直接在 VSCode 左侧 Explorer 中：
+
+```text
+右键项目
+→ New Folder
+→ app
+
+右键 app
+→ New File
+→ main.py
+```
+
+现在目录：
+
+```text
+mini--mm-agent/
+├── .venv/
+└── app/
+    └── main.py
+```
+
+---
+
+## 3.2 写第一行 Python
+
+打开：
 
 ```text
 app/main.py
 ```
 
-先只写：
+写：
 
 ```python
 print("Hello Mini Agent")
 ```
 
-运行：
+然后按：
+
+```text
+Ctrl + S
+```
+
+保存。
+
+### 为什么我要特意提醒保存？
+
+VSCode 文件标签右边如果有一个小圆点：
+
+```text
+main.py ●
+```
+
+通常代表文件还没有保存到磁盘。
+
+Python 执行的是**磁盘上的文件**，不是你眼睛里尚未保存的编辑器内容。
+
+这个小细节会在后面造成一个非常经典的困惑：
+
+```text
+我明明已经改代码了
+为什么程序还在执行旧代码？
+```
+
+先养成：
+
+```text
+改完 → Ctrl + S → 再测试
+```
+
+的习惯。
+
+---
+
+## 3.3 从 Terminal 运行它
+
+确保你当前目录是项目根目录：
+
+```bash
+pwd
+```
+
+类似：
+
+```text
+/home/yourname/mini--mm-agent
+```
+
+执行：
 
 ```bash
 python app/main.py
 ```
 
-得到：
+应该看到：
 
 ```text
 Hello Mini Agent
 ```
 
-为什么要先做这么简单的东西？
-
-因为一个 Agent 项目有很多层。以后报错时，你应该学会逐层判断：
-
-```text
-Python 能不能运行？
-↓
-FastAPI 能不能运行？
-↓
-HTTP 请求有没有收到？
-↓
-模型 API 有没有打通？
-↓
-工具有没有执行？
-↓
-Agent Loop 有没有继续？
-```
-
-**逐层验证**是比背代码更重要的开发习惯。
+如果你看到这句话，这一章就成功了。
 
 ---
 
-# 第 4 章：第一次启动 FastAPI
+## 3.4 这条命令到底做了什么？
 
-> **本章目标**：把 Python 程序变成一个 Web 服务。  
-> **完成效果**：浏览器访问 `127.0.0.1:8001` 能看到 JSON。  
-> **核心知识**：FastAPI、Uvicorn、Route。
+```bash
+python app/main.py
+```
 
-安装：
+可以拆成：
+
+```text
+python
+→ 使用当前虚拟环境中的 Python 解释器
+
+app/main.py
+→ 把这个 Python 文件交给解释器执行
+```
+
+执行流程：
+
+```text
+Terminal
+↓
+.venv/bin/python
+↓
+读取 app/main.py
+↓
+执行 print(...)
+↓
+终端出现 Hello Mini Agent
+```
+
+这条链路看起来简单，却非常重要。
+
+以后你的项目可能同时出现：
+
+```text
+FastAPI
+Responses API
+SQLite
+Agent Loop
+E2B
+前端
+```
+
+如果一开始连“到底哪个 Python 在运行哪个文件”都不清楚，排错会非常痛苦。
+
+---
+
+## 3.5 为什么不直接一口气写 Agent？
+
+因为真实开发很少是：
+
+```text
+写完 500 行
+↓
+一次运行
+↓
+祈祷成功
+```
+
+更好的方式是：
+
+```text
+先验证 Python
+↓
+再验证 FastAPI
+↓
+再验证 HTTP
+↓
+再验证大模型
+↓
+再验证 Tool Calling
+↓
+最后组合成 Agent
+```
+
+每次只增加一层。
+
+这样报错时，你能大概知道：
+
+> “刚才还是好的，只加了这一层以后坏了，那问题大概率就在这一层附近。”
+
+这叫**逐层验证**。
+
+---
+
+## 3.6 本章小练习
+
+不要复制下面答案，自己修改 `main.py`，让它输出两行：
+
+```text
+Hello Mini Agent
+I am learning AI Agent
+```
+
+提示：可以写两个 `print()`。
+
+完成后再把第二行删除，恢复：
+
+```python
+print("Hello Mini Agent")
+```
+
+因为下一章我们会把这个普通 Python 程序改造成 FastAPI Web 服务。
+
+### 本章检查清单
+
+```text
+[ ] app/main.py 已创建
+[ ] 文件已经 Ctrl + S 保存
+[ ] python app/main.py 能运行
+[ ] 输出 Hello Mini Agent
+```
+
+### 你现在应该能回答
+
+> `python app/main.py` 中的 `python` 和 `app/main.py` 分别代表什么？
+
+---
+
+# 第 4 章：第一次启动 FastAPI —— 把 Python 函数变成可以访问的 Web API
+
+> **本章目标**：把一个只能在 Terminal 运行的 Python 程序，变成浏览器可以访问的 Web 服务。  
+> **完成效果**：浏览器访问 `http://127.0.0.1:8001` 能看到 JSON，并能打开 `/docs`。  
+> **核心知识**：Web Server、FastAPI、Uvicorn、Route、Decorator、端口。
+
+前面我们的程序只有这样：
+
+```text
+你在 Terminal 运行 Python
+↓
+Python 输出结果
+```
+
+但真正的 Agent 最后需要被：
+
+```text
+浏览器
+其他程序
+手机 App
+前端网页
+```
+
+调用。
+
+所以我们需要一个 Web API。
+
+这就是 FastAPI 开始登场的地方。
+
+---
+
+## 4.1 先安装 FastAPI 和 Uvicorn
+
+确保你仍然看得到：
+
+```text
+(.venv)
+```
+
+执行：
 
 ```bash
 pip install fastapi uvicorn
 ```
 
-把 `app/main.py` 改成：
+这里装了两个东西。
+
+### FastAPI
+
+负责：
+
+```text
+定义“有哪些 HTTP 接口”
+接收请求
+把请求转换成 Python 参数
+把 Python 返回值转换成 HTTP 响应
+```
+
+### Uvicorn
+
+负责真正把 FastAPI 应用**运行成一个 Web Server**。
+
+可以先粗略理解成：
+
+```text
+FastAPI
+→ 你写网站后端规则
+
+Uvicorn
+→ 把这些规则真正跑起来，对外监听请求
+```
+
+安装后可以检查：
+
+```bash
+pip show fastapi
+pip show uvicorn
+```
+
+---
+
+## 4.2 把 `app/main.py` 改成 FastAPI
+
+把原来的：
+
+```python
+print("Hello Mini Agent")
+```
+
+删除，改成：
 
 ```python
 from fastapi import FastAPI
@@ -348,13 +1219,221 @@ def home():
     }
 ```
 
-启动：
+保存：
+
+```text
+Ctrl + S
+```
+
+现在不要急着背代码，我们逐块看。
+
+---
+
+## 4.3 `from fastapi import FastAPI` 是什么？
+
+```python
+from fastapi import FastAPI
+```
+
+意思是：
+
+> 从安装好的 `fastapi` 包中，把 `FastAPI` 这个类拿进当前文件使用。
+
+前一章我们只有 Python 自带的 `print()`。
+
+现在开始使用第三方库提供的能力。
+
+---
+
+## 4.4 `app = FastAPI()` 是什么？
+
+```python
+app = FastAPI()
+```
+
+可以先理解成：
+
+> 创建一个 FastAPI 后端应用对象，并把它放进变量 `app`。
+
+以后：
+
+```text
+有哪些接口？
+有哪些中间件？
+有哪些配置？
+```
+
+都会围绕这个 `app` 组织。
+
+注意这里变量为什么叫 `app`？
+
+其实可以叫别的名字，但 `app` 是 Web 项目里非常常见的约定。
+
+后面的 Uvicorn 命令也会用到这个变量名。
+
+---
+
+## 4.5 `@app.get("/")` 是什么？
+
+```python
+@app.get("/")
+def home():
+```
+
+可以先把它读成人话：
+
+> 当有人通过 **GET** 请求访问 `/` 时，请执行下面这个 `home()` 函数。
+
+这里：
+
+```text
+GET
+→ HTTP 请求方法
+
+/
+→ URL 路径，也就是网站根路径
+
+home()
+→ 真正执行的 Python 函数
+```
+
+`@app.get(...)` 这种以 `@` 开头的写法在 Python 中叫 **Decorator（装饰器）**。
+
+现在不需要先学习装饰器全部语法。
+
+你只要先理解它在 FastAPI 里的作用：
+
+> **把一个 Python 函数注册成 HTTP 接口。**
+
+---
+
+## 4.6 `return {"message": ...}` 为什么浏览器看到的是 JSON？
+
+我们的函数返回的是 Python 字典：
+
+```python
+{
+    "message": "Hello Mini Agent"
+}
+```
+
+FastAPI 会帮我们把它转换成 JSON HTTP 响应。
+
+所以浏览器最后看到：
+
+```json
+{
+  "message": "Hello Mini Agent"
+}
+```
+
+这就是框架帮我们省掉的工作之一。
+
+---
+
+## 4.7 启动服务器
+
+回到项目根目录：
+
+```bash
+pwd
+```
+
+应该是：
+
+```text
+/home/yourname/mini--mm-agent
+```
+
+执行：
 
 ```bash
 uvicorn app.main:app --reload --port 8001
 ```
 
-打开：
+正常应该看到类似：
+
+```text
+INFO:     Uvicorn running on http://127.0.0.1:8001
+INFO:     Started reloader process ...
+INFO:     Started server process ...
+INFO:     Application startup complete.
+```
+
+**这个 Terminal 暂时不要关。**
+
+因为 Uvicorn 正在这个终端里运行服务器。
+
+如果你按：
+
+```text
+Ctrl + C
+```
+
+服务器就会停止。
+
+---
+
+## 4.8 `uvicorn app.main:app --reload --port 8001` 怎么读？
+
+第一次看到很像一串咒语，我们拆开：
+
+```text
+uvicorn
+→ 使用 Uvicorn 启动服务器
+
+app.main
+→ 找到 app/main.py 这个 Python 模块
+
+:app
+→ 在这个模块里找到名叫 app 的变量
+
+--reload
+→ 代码保存后自动重新加载开发服务器
+
+--port 8001
+→ 监听 8001 端口
+```
+
+所以整句话翻译成人话就是：
+
+> 使用 Uvicorn 启动 `app/main.py` 中的 `app = FastAPI()`，开发时监控代码变化，并在 8001 端口提供服务。
+
+---
+
+## 4.9 `127.0.0.1` 和 `8001` 是什么？
+
+地址：
+
+```text
+http://127.0.0.1:8001
+```
+
+可以粗略拆成：
+
+```text
+127.0.0.1
+→ 当前电脑自己，也常叫 localhost
+
+8001
+→ 这个程序使用的端口
+```
+
+一台电脑可以同时运行很多网络程序，所以需要端口区分：
+
+```text
+程序 A → 8001
+程序 B → 3000
+程序 C → 其他端口
+```
+
+后面我们的前端会使用 3000，后端使用 8001。
+
+---
+
+## 4.10 用 Windows 浏览器访问 WSL 中的服务
+
+虽然 Uvicorn 是在 WSL Ubuntu 中运行的，你通常仍然可以直接在 Windows 浏览器打开：
 
 ```text
 http://127.0.0.1:8001
@@ -366,96 +1445,303 @@ http://127.0.0.1:8001
 {"message":"Hello Mini Agent"}
 ```
 
-再打开：
+恭喜：现在已经发生了第一次真正的 HTTP 调用。
+
+```text
+Windows 浏览器
+↓ HTTP GET
+WSL 中的 Uvicorn
+↓
+FastAPI
+↓
+home()
+↓
+JSON
+↓
+浏览器
+```
+
+---
+
+## 4.11 再打开 `/docs`
+
+访问：
 
 ```text
 http://127.0.0.1:8001/docs
 ```
 
-这是 FastAPI 自动生成的 Swagger API 文档。
+你会看到 FastAPI 自动生成的 Swagger UI。
 
-## `app = FastAPI()` 是什么？
-
-可以先把它理解成：
-
-> 创建一个后端应用对象。
-
-## `@app.get("/")` 是什么？
-
-它告诉 FastAPI：
-
-> 当有人用 GET 访问 `/` 时，执行下面的 `home()`。
-
-## `uvicorn app.main:app` 怎么读？
-
-```text
-uvicorn
-→ 用 Uvicorn 运行 Web 服务
-
-app.main
-→ 找 app/main.py
-
-:app
-→ 找这个文件中的 app = FastAPI()
-```
-
-### 常见错误：Address already in use
-
-```text
-[Errno 98] Address already in use
-```
-
-说明端口已被其他进程占用。
-
-查看：
-
-```bash
-ss -ltnp | grep :8001
-```
-
-或者临时换端口。
-
----
-
-# 第 5 章：GET、POST、Header 和 JSON
-
-> **本章目标**：理解前端到底怎样把一句话交给后端。  
-> **完成效果**：能用 Swagger 或 curl 发送 POST JSON。  
-> **核心知识**：HTTP Method、Header、Body、JSON。
-
-这是整个教程里非常值得认真理解的一章。
-
-浏览器地址栏输入网址时，默认发送的是：
+里面应该出现：
 
 ```text
 GET /
 ```
 
-GET 通常表示“读取”。
+这个页面非常重要。
 
-但聊天/Agent 请求要把数据交给服务器，例如：
+因为后面我们创建 POST 接口以后，不用一开始就写前端，可以直接在 `/docs` 中测试接口。
+
+---
+
+## 4.12 常见错误 1：`Address already in use`
+
+如果启动时看到：
+
+```text
+[Errno 98] Address already in use
+```
+
+翻译成人话：
+
+> 8001 端口已经被另一个进程占用了。
+
+查看是谁占用：
+
+```bash
+ss -ltnp | grep :8001
+```
+
+也可以临时换一个：
+
+```bash
+uvicorn app.main:app --reload --port 8002
+```
+
+那浏览器也要改成：
+
+```text
+http://127.0.0.1:8002
+```
+
+---
+
+## 4.13 常见错误 2：`Attribute "app" not found`
+
+如果看到类似：
+
+```text
+Error loading ASGI app. Attribute "app" not found in module "app.main".
+```
+
+先检查：
+
+```python
+app = FastAPI()
+```
+
+是不是已经保存到 `app/main.py`。
+
+如果 VSCode 标签上还有小圆点，很可能你只是改了编辑器内容，却还没 `Ctrl + S`。
+
+---
+
+## 4.14 本章小练习：自己增加一个 GET 接口
+
+在下面继续增加：
+
+```python
+@app.get("/hello")
+def hello():
+    return {
+        "message": "Hello from /hello"
+    }
+```
+
+保存以后访问：
+
+```text
+http://127.0.0.1:8001/hello
+```
+
+再去：
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+看看是不是出现两个 GET 接口。
+
+练习完成后，你可以保留 `/hello`，也可以删掉它。
+
+### 本章检查清单
+
+```text
+[ ] pip 安装 fastapi 和 uvicorn 成功
+[ ] uvicorn 能启动
+[ ] 浏览器访问 / 能看到 JSON
+[ ] /docs 能打开
+[ ] 能解释 app.main:app
+[ ] 能自己新增一个 GET 路由
+```
+
+### 你现在应该能回答
+
+> 为什么我们已经写了 FastAPI，还需要 Uvicorn？
+
+---
+
+# 第 5 章：GET、POST、Header 和 JSON —— 前端到底怎样把数据交给后端？
+
+> **本章目标**：理解 HTTP 请求最关键的几部分，并写出第一个接收 JSON 的 POST API。  
+> **完成效果**：能用 Swagger 和 curl 向 `/responses` 发送 JSON，并拿到后端返回值。  
+> **核心知识**：GET、POST、URL、Header、Body、JSON、Pydantic、HTTP 状态码。
+
+这一章非常重要。
+
+因为后面的：
+
+```text
+前端调用你的 FastAPI
+你的 FastAPI 调用 Responses API
+Agent 把结果返回前端
+```
+
+底层都离不开 HTTP 数据交换。
+
+我们这一章暂时**还不调用大模型**。
+
+先把 HTTP 本身搞懂。
+
+---
+
+## 5.1 为什么浏览器地址栏可以直接访问 GET？
+
+当你在地址栏输入：
+
+```text
+http://127.0.0.1:8001/
+```
+
+然后按回车，浏览器默认会发送类似：
+
+```text
+GET /
+```
+
+而你的代码刚好有：
+
+```python
+@app.get("/")
+```
+
+所以匹配成功。
+
+GET 通常用于：
+
+```text
+读取页面
+获取资源
+查询数据
+```
+
+例如以后可能看到：
+
+```text
+GET /users/123
+GET /projects/abc
+GET /status
+```
+
+---
+
+## 5.2 为什么聊天请求更适合 POST？
+
+假设用户想发送：
+
+```text
+你好，请解释什么是 Agent
+```
+
+我们希望把它作为结构化数据提交：
 
 ```json
 {
-  "input": "你好"
+  "input": "你好，请解释什么是 Agent"
 }
 ```
 
-于是更适合 POST。
+这种“把一份数据交给服务器处理”的场景通常使用 POST。
 
-创建请求数据模型：
+所以可以先这样记：
+
+```text
+GET
+→ 我想获取东西
+
+POST
+→ 我想提交一份数据，让服务器处理
+```
+
+这不是 HTTP 的全部规则，但作为初学者第一层理解非常够用。
+
+---
+
+## 5.3 一个 HTTP 请求可以先想成四部分
+
+以后看到任何 API，请先找这四个东西：
+
+```text
+1. Method
+   GET / POST / PUT / DELETE ...
+
+2. URL
+   http://127.0.0.1:8001/responses
+
+3. Headers
+   Content-Type: application/json
+
+4. Body
+   {"input":"你好"}
+```
+
+这四个概念后面会反复出现。
+
+---
+
+## 5.4 先让 Python 描述“我希望收到什么数据”
+
+打开：
+
+```text
+app/main.py
+```
+
+在顶部增加：
 
 ```python
 from pydantic import BaseModel
+```
 
+然后定义：
 
+```python
 class ResponseRequest(BaseModel):
     input: str
 ```
 
-接口：
+现在 `app/main.py` 可以写成：
 
 ```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+
+app = FastAPI()
+
+
+class ResponseRequest(BaseModel):
+    input: str
+
+
+@app.get("/")
+def home():
+    return {
+        "message": "Hello Mini Agent"
+    }
+
+
 @app.post("/responses")
 def create_response(request: ResponseRequest):
     return {
@@ -463,20 +1749,296 @@ def create_response(request: ResponseRequest):
     }
 ```
 
-如果你直接在浏览器地址栏打开 `/responses`，可能看到：
+保存。
 
-```json
-{"detail":"Method Not Allowed"}
-```
-
-这并不是接口不存在，而是：
+因为上一章使用了：
 
 ```text
-浏览器地址栏发送 GET
-但接口要求 POST
+--reload
 ```
 
-用 curl：
+Uvicorn 通常会自动重新加载。
+
+---
+
+## 5.5 `BaseModel` 到底在做什么？
+
+```python
+class ResponseRequest(BaseModel):
+    input: str
+```
+
+这段代码是在告诉 FastAPI：
+
+> `/responses` 的请求 Body 应该是一个对象，其中必须有 `input` 字段，而且 `input` 应该是字符串。
+
+也就是说它期待：
+
+```json
+{
+  "input": "你好"
+}
+```
+
+而不是：
+
+```json
+{
+  "abc": "你好"
+}
+```
+
+Pydantic 会帮助 FastAPI：
+
+```text
+解析 JSON
+↓
+检查字段
+↓
+检查类型
+↓
+转换成 Python 对象
+```
+
+于是你的函数里可以直接写：
+
+```python
+request.input
+```
+
+拿到用户提交的文字。
+
+---
+
+## 5.6 `@app.post("/responses")` 是什么？
+
+```python
+@app.post("/responses")
+def create_response(request: ResponseRequest):
+```
+
+翻译成人话：
+
+> 当有人通过 POST 请求访问 `/responses`，并且 Body 符合 `ResponseRequest` 格式时，执行 `create_response()`。
+
+所以现在服务器有两个不同接口：
+
+```text
+GET /
+
+POST /responses
+```
+
+它们即使都在同一个 FastAPI 程序里，作用完全不同。
+
+---
+
+## 5.7 为什么现在只是“复读”，不直接接大模型？
+
+我们先写：
+
+```python
+return {
+    "output": f"你输入了：{request.input}"
+}
+```
+
+例如用户提交：
+
+```text
+你好
+```
+
+返回：
+
+```json
+{
+  "output": "你输入了：你好"
+}
+```
+
+它当然还不是 AI。
+
+但这样我们可以先验证：
+
+```text
+HTTP POST
+↓
+JSON Body
+↓
+FastAPI
+↓
+Pydantic
+↓
+Python 函数
+↓
+JSON Response
+```
+
+这条链路独立是好的。
+
+下一阶段再把中间的“复读”替换成真正模型调用。
+
+这就是前面说的**逐层验证**。
+
+---
+
+## 5.8 用 Swagger 测试 POST
+
+打开：
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+现在应该看到：
+
+```text
+GET  /
+POST /responses
+```
+
+展开：
+
+```text
+POST /responses
+```
+
+点击：
+
+```text
+Try it out
+```
+
+输入：
+
+```json
+{
+  "input": "你好，我正在学习 Agent"
+}
+```
+
+点击：
+
+```text
+Execute
+```
+
+正常应该得到状态码：
+
+```text
+200
+```
+
+Response body 类似：
+
+```json
+{
+  "output": "你输入了：你好，我正在学习 Agent"
+}
+```
+
+### `200` 是什么？
+
+这是 HTTP Status Code（状态码）。
+
+现在先认识几个最常见的：
+
+```text
+200
+→ 请求成功
+
+404
+→ 资源或路径没找到
+
+405
+→ 路径可能存在，但 HTTP Method 不允许
+
+422
+→ FastAPI 收到请求，但数据格式没有通过验证
+
+500
+→ 服务器内部代码发生错误
+```
+
+以后看到报错时，状态码本身就是第一条线索。
+
+---
+
+## 5.9 为什么直接在浏览器地址栏打开 `/responses` 会报错？
+
+试着在地址栏输入：
+
+```text
+http://127.0.0.1:8001/responses
+```
+
+你可能看到：
+
+```json
+{
+  "detail": "Method Not Allowed"
+}
+```
+
+或者状态码：
+
+```text
+405
+```
+
+原因不是 `/responses` 不存在。
+
+而是：
+
+```text
+浏览器地址栏
+默认发送 GET
+
+你的接口
+只接受 POST
+```
+
+也就是：
+
+```text
+GET /responses   ❌
+POST /responses  ✅
+```
+
+这是一条非常重要的调试思路：
+
+> **URL 对了，不代表 Method 就对了。**
+
+---
+
+## 5.10 不用 Swagger，使用 curl 发送请求
+
+保持 Uvicorn 的 Terminal 继续运行。
+
+在 VSCode 里**新开第二个 Terminal**。
+
+如果新 Terminal 没自动激活 `.venv`，对 curl 没关系，因为 curl 不是 Python 包。
+
+执行：
+
+```bash
+curl -X POST http://127.0.0.1:8001/responses \
+  -H "Content-Type: application/json" \
+  -d '{"input":"你好，我是从终端发过来的"}'
+```
+
+正常应该看到：
+
+```json
+{"output":"你输入了：你好，我是从终端发过来的"}
+```
+
+---
+
+## 5.11 把 curl 一段一段拆开
+
+完整命令：
 
 ```bash
 curl -X POST http://127.0.0.1:8001/responses \
@@ -484,38 +2046,321 @@ curl -X POST http://127.0.0.1:8001/responses \
   -d '{"input":"你好"}'
 ```
 
-拆开理解：
+### `curl`
+
+它是一个命令行 HTTP 客户端。
+
+可以理解成：
+
+> 不通过浏览器页面，直接从 Terminal 手工发送 HTTP 请求。
+
+### `-X POST`
 
 ```text
--X POST
-→ 请求方法
+-X
+→ 指定 HTTP Method
 
--H "Content-Type: application/json"
-→ Header，告诉服务器 Body 是 JSON
-
--d '{"input":"你好"}'
-→ Body，真正提交的数据
+POST
+→ 本次使用 POST
 ```
 
-以后前端的 `fetch()` 本质上做的也是这一件事。
+### URL
 
-### 常见错误
+```text
+http://127.0.0.1:8001/responses
+```
+
+告诉 curl：
+
+> 请求发给谁。
+
+### `-H "Content-Type: application/json"`
+
+`-H` 用来增加 HTTP Header。
+
+这里告诉 FastAPI：
+
+> 我发送的 Body 是 JSON 格式。
+
+### `-d ...`
+
+```bash
+-d '{"input":"你好"}'
+```
+
+`-d` 是真正发送的数据。
+
+这里就是 HTTP Body。
+
+---
+
+## 5.12 Header 和 Body 可以怎么理解？
+
+可以做一个不完全严谨、但很好记的类比。
+
+假设你寄一个包裹：
+
+```text
+快递单上的说明
+→ Header
+
+包裹里面真正的东西
+→ Body
+```
+
+例如：
+
+```text
+Content-Type: application/json
+```
+
+是在告诉服务器：
+
+> “请按 JSON 的方式理解里面的数据。”
+
+真正的数据则是：
+
+```json
+{
+  "input": "你好"
+}
+```
+
+---
+
+## 5.13 JSON 和 Python 字典看起来为什么这么像？
+
+Python 字典：
+
+```python
+{
+    "input": "你好"
+}
+```
+
+JSON 文本：
+
+```json
+{
+  "input": "你好"
+}
+```
+
+肉眼非常像。
+
+但它们不是同一种东西。
+
+Python 字典是：
+
+```text
+Python 进程里的对象
+```
+
+JSON 是：
+
+```text
+一种跨程序传输数据的文本格式
+```
+
+以后你会看到：
+
+```python
+json.dumps(...)
+```
+
+把 Python 对象变成 JSON 字符串；
+
+以及：
+
+```python
+json.loads(...)
+```
+
+把 JSON 字符串解析成 Python 对象。
+
+现在只需要先把这个区别记住。
+
+---
+
+## 5.14 故意发送一个错误请求，看看 Pydantic 怎么保护接口
+
+在 `/docs` 中把请求改成：
+
+```json
+{
+  "abc": "你好"
+}
+```
+
+但我们的模型要求：
+
+```python
+class ResponseRequest(BaseModel):
+    input: str
+```
+
+也就是说 `input` 是必需的。
+
+所以 FastAPI 会拒绝请求，通常返回：
+
+```text
+422 Unprocessable Entity
+```
+
+这说明一个很重要的事情：
+
+> 你的 `create_response()` 函数甚至不需要自己手写 `if input 不存在`，Pydantic 已经在请求进入业务函数之前帮你做了一层数据验证。
+
+---
+
+## 5.15 常见错误：把 `-X` 写成 `-x`
+
+错误：
 
 ```bash
 curl -x POST ...
 ```
 
-小写 `-x` 是代理设置，所以会出现：
+你可能得到：
 
 ```text
 Could not resolve proxy: POST
 ```
 
-正确是大写：
+原因是 curl 中：
+
+```text
+-x
+→ proxy，设置代理
+
+-X
+→ request method，指定 HTTP 方法
+```
+
+所以必须注意大小写：
 
 ```bash
 -X POST
 ```
+
+---
+
+## 5.16 这一章和以后前端有什么关系？
+
+未来 JavaScript 会写：
+
+```javascript
+fetch("http://127.0.0.1:8001/responses", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+        input: "你好"
+    })
+})
+```
+
+你现在不需要学 JavaScript。
+
+只要先发现它和 curl 的对应关系：
+
+```text
+curl -X POST
+↔ method: "POST"
+
+curl -H
+↔ headers
+
+curl -d
+↔ body
+```
+
+本质上它们都在构造同一个 HTTP 请求。
+
+---
+
+## 5.17 这一章和以后调用大模型又有什么关系？
+
+下一阶段你的程序会变成：
+
+```text
+浏览器 / Swagger / curl
+        ↓ POST JSON
+你的 FastAPI
+        ↓ 网络 API 请求
+Responses API
+        ↓
+大模型
+```
+
+也就是说：
+
+> **前端调用你的后端，和你的后端调用模型服务，本质上都是程序之间通过 API 交换数据。**
+
+理解这一层以后，后面的模型 API 就不会显得那么神秘。
+
+---
+
+## 5.18 本章小练习
+
+给请求模型再增加一个字段：
+
+```python
+class ResponseRequest(BaseModel):
+    input: str
+    user_name: str
+```
+
+然后让返回值变成类似：
+
+```json
+{
+  "output": "乐知，你输入了：你好"
+}
+```
+
+尝试自己修改 Swagger 请求 JSON。
+
+练习完后，为了和后续教程保持一致，可以把代码恢复为：
+
+```python
+class ResponseRequest(BaseModel):
+    input: str
+```
+
+### 本章检查清单
+
+```text
+[ ] 能解释 GET 和 POST 的第一层区别
+[ ] 知道 URL / Header / Body 分别是什么
+[ ] 能用 Swagger 发送 POST
+[ ] 能用 curl 发送 POST JSON
+[ ] 知道浏览器地址栏为什么不能直接测试 POST
+[ ] 知道 200 / 405 / 422 / 500 大概代表什么
+[ ] 知道 BaseModel 在帮我们验证请求数据
+```
+
+### 你现在应该能回答
+
+如果看到下面这条请求：
+
+```bash
+curl -X POST http://127.0.0.1:8001/responses \
+  -H "Content-Type: application/json" \
+  -d '{"input":"你好"}'
+```
+
+你应该能指出：
+
+```text
+HTTP Method 在哪里？
+URL 在哪里？
+Header 在哪里？
+Body 在哪里？
+```
+
+如果这些都能自己解释，第 1～5 章的 Web 基础已经真正打通。
 
 ---
 
