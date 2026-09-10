@@ -585,109 +585,28 @@ class ResponseRequest(BaseModel):
 
 从这一章开始，我们马上要调用真正的大模型 API。
 
-这意味着程序需要知道三件东西：
+程序至少需要知道：
 
 ```text
 API_KEY
-→ 你是谁 / 你有没有调用权限
+→ 调用权限
 
 BASE_URL
-→ 请求应该发到哪个 API 服务器
+→ API 服务地址
 
 MODEL_NAME
-→ 这次要使用哪个模型
+→ 使用哪个模型
 ```
 
-以后执行 Python 沙箱时，还会增加：
+后面使用 E2B 时还会增加 `E2B_API_KEY`。
 
-```text
-E2B_API_KEY
-```
-
-## 6.1 为什么不能直接写在 Python 代码里？
-
-最简单的写法当然是：
-
-```python
-API_KEY = "sk-xxxxxxxxxxxxxxxx"
-```
-
-程序确实能运行。
-
-但如果你之后：
-
-```bash
-git add .
-git commit
-git push
-```
-
-真实 Key 很可能跟着源码一起上传 GitHub。
-
-这会产生两个问题：
-
-1. 别人可能使用你的额度；
-2. 即使后来删除那一行，Key 也可能已经进入 Git 历史。
-
-所以我们把：
-
-```text
-程序逻辑
-```
-
-和：
-
-```text
-运行配置 / 密钥
-```
-
-分开。
-
----
-
-## 6.2 安装 `python-dotenv`
-
-确认虚拟环境仍然激活：
-
-```text
-(.venv)
-```
-
-执行：
+安装：
 
 ```bash
 pip install python-dotenv
 ```
 
-这个库的作用很简单：
-
-> 帮 Python 从 `.env` 文件中加载环境变量。
-
----
-
-## 6.3 在项目根目录创建 `.env`
-
-注意位置。
-
-现在应该是：
-
-```text
-mini--mm-agent/
-├── .venv/
-├── .env           ← 创建在这里
-└── app/
-    └── main.py
-```
-
-创建：
-
-```bash
-touch .env
-```
-
-或者直接在 VSCode Explorer 中新建 `.env`。
-
-先写测试值：
+项目根目录创建 `.env`：
 
 ```env
 API_KEY=test-key
@@ -696,66 +615,7 @@ MODEL_NAME=test-model
 E2B_API_KEY=
 ```
 
-这里暂时不用放真实 Key。
-
-我们先验证“配置读取链路”本身是通的。
-
----
-
-## 6.4 `.env` 为什么通常不用写引号？
-
-下面这种写法完全可以：
-
-```env
-MODEL_NAME=test-model
-BASE_URL=https://example.com/v1
-```
-
-`python-dotenv` 读取以后，Python 得到的仍然是字符串。
-
-也可以写：
-
-```env
-MODEL_NAME="test-model"
-```
-
-如果值中包含空格或一些特殊字符，加英文引号会更清楚。
-
-不要写成中文弯引号：
-
-```text
-“test-model”
-```
-
-环境变量还有一个很重要的特点：
-
-```env
-PORT=8001
-```
-
-读取出来通常仍然是字符串：
-
-```python
-"8001"
-```
-
-如果真的需要整数，需要自己转换：
-
-```python
-port = int(os.getenv("PORT"))
-```
-
----
-
-## 6.5 创建 `app/config.py`
-
-创建：
-
-```bash
-touch app/config.py
-```
-
-写：
+创建 `app/config.py`：
 
 ```python
 import os
@@ -771,49 +631,7 @@ MODEL_NAME = os.getenv("MODEL_NAME")
 E2B_API_KEY = os.getenv("E2B_API_KEY")
 ```
 
-保存。
-
-### `import os` 是什么？
-
-`os` 是 Python 标准库的一部分。
-
-我们这里主要用：
-
-```python
-os.getenv(...)
-```
-
-读取环境变量。
-
-### `load_dotenv()` 是什么？
-
-可以先理解成：
-
-```text
-.env 文件
-↓
-load_dotenv()
-↓
-把里面的键值对加载进当前 Python 进程的环境变量
-```
-
-然后：
-
-```python
-os.getenv("MODEL_NAME")
-```
-
-就可以取出：
-
-```text
-test-model
-```
-
----
-
-## 6.6 测试配置是否真的读到了
-
-在项目根目录执行：
+测试：
 
 ```bash
 python -c "from app.config import MODEL_NAME; print(MODEL_NAME)"
@@ -825,93 +643,15 @@ python -c "from app.config import MODEL_NAME; print(MODEL_NAME)"
 test-model
 ```
 
-再测试：
+`.env` 中通常不需要给普通字符串加引号：
 
-```bash
-python -c "from app.config import BASE_URL; print(BASE_URL)"
+```env
+MODEL_NAME=test-model
 ```
 
-应该输出：
+如果包含空格，也可以使用英文双引号。不要使用中文弯引号。
 
-```text
-https://example.com/v1
-```
-
-### 为什么不建议测试时直接打印真实 API Key？
-
-因为以后你可能：
-
-- 截图终端；
-- 录屏；
-- 把报错复制到 issue；
-- 把日志贴给别人。
-
-如果养成 `print(API_KEY)` 的习惯，Key 很容易意外泄漏。
-
-验证配置时优先打印：
-
-```text
-MODEL_NAME
-BASE_URL
-```
-
-即可。
-
----
-
-## 6.7 一个非常经典的错误：文件没保存
-
-如果代码明明写了：
-
-```python
-MODEL_NAME = os.getenv("MODEL_NAME")
-```
-
-但运行：
-
-```bash
-python -c "from app.config import MODEL_NAME; print(MODEL_NAME)"
-```
-
-却得到：
-
-```text
-ImportError: cannot import name 'MODEL_NAME' from 'app.config'
-```
-
-先不要怀疑 `dotenv`。
-
-执行：
-
-```bash
-cat app/config.py
-```
-
-看看磁盘上的文件到底是什么。
-
-如果终端看到的是旧内容，很可能 VSCode 还没保存。
-
-按：
-
-```text
-Ctrl + S
-```
-
-然后再测试。
-
-这也是为什么前面一直强调“磁盘上的文件”和“编辑器当前显示的内容”并不永远同步。
-
----
-
-## 6.8 创建 `.gitignore`
-
-项目根目录创建：
-
-```text
-.gitignore
-```
-
-写：
+创建 `.gitignore`：
 
 ```gitignore
 .venv/
@@ -921,37 +661,7 @@ __pycache__/
 chat.db
 ```
 
-这里最关键的是：
-
-```gitignore
-.env
-```
-
-意思是：
-
-> Git 默认不要追踪真实 `.env`。
-
-可以检查：
-
-```bash
-git status
-```
-
-真实 `.env` 不应该出现在准备提交的文件列表中。
-
----
-
-## 6.9 为什么仓库里还要有 `.env.example`？
-
-如果 `.env` 不上传 GitHub，别人 clone 你的项目以后怎么知道应该配置哪些变量？
-
-所以再创建：
-
-```text
-.env.example
-```
-
-内容：
+再创建可以提交到 GitHub 的 `.env.example`：
 
 ```env
 API_KEY=
@@ -960,68 +670,19 @@ MODEL_NAME=your-responses-compatible-model
 E2B_API_KEY=
 ```
 
-`.env.example` 只告诉别人：
-
-> “这个项目需要哪些配置。”
-
-但里面不放真实秘密。
-
-所以最终是：
+所以：
 
 ```text
 .env
-→ 本机真实配置，不提交
+→ 真实本地配置，不提交
 
 .env.example
-→ 配置模板，可以提交
+→ 告诉别人需要配置哪些字段，可以提交
 ```
 
----
+完成测试后，把 `.env` 改成你的真实模型配置。
 
-## 6.10 现在换成你的真实模型配置
-
-完成上面的 `test-model` 测试后，再把 `.env` 改成你自己的：
-
-```env
-API_KEY=你的真实Key
-BASE_URL=你的真实BaseURL
-MODEL_NAME=你的真实模型名
-E2B_API_KEY=
-```
-
-不要把 Key 发到 issue、README、截图或聊天记录里。
-
-如果你使用第三方 API，先确认它是否真的实现了 **Responses API**。
-
----
-
-### 第 6 章检查清单
-
-```text
-[ ] python-dotenv 已安装
-[ ] 根目录有 .env
-[ ] app/config.py 能读取 MODEL_NAME
-[ ] 根目录有 .gitignore
-[ ] .env 被 .gitignore 忽略
-[ ] 有可以公开提交的 .env.example
-[ ] 没有把真实 API Key 打印或提交到 GitHub
-```
-
-### 本章小练习
-
-在 `.env` 增加：
-
-```env
-PROJECT_NAME=Mini Agent
-```
-
-在 Python 中读取并打印它。
-
-练习结束后可以删除这个测试字段。
-
-### 你现在应该能回答
-
-> `.env` 和 `.env.example` 为什么要同时存在？它们最大的区别是什么？
+> 不要把 API Key 打印在截图、Issue、README 或日志里。
 
 ---
 
@@ -1031,84 +692,13 @@ PROJECT_NAME=Mini Agent
 > **完成效果**：终端打印模型真实返回的文字。  
 > **核心知识**：SDK、Client、Responses API、`model`、`instructions`、`input`、`output_text`。
 
-到这一章之前，我们已经有两条独立链路：
-
-```text
-Python → 能运行
-```
-
-以及：
-
-```text
-HTTP → FastAPI → 能接收 JSON
-```
-
-现在先建立第三条：
-
-```text
-Python
-↓
-大模型 API
-↓
-模型回答
-```
-
-注意：这一章仍然**不做 Tool Calling，也不做 Agent Loop**。
-
-原因还是同一个：先把每一层单独验证通。
-
----
-
-## 7.1 SDK 是什么？
-
-理论上，你可以自己手写 HTTP 请求去调用模型服务器。
-
-但官方 SDK 已经帮我们处理了很多重复工作，例如：
-
-```text
-Authorization Header
-JSON 请求构造
-Response 对象解析
-网络连接
-错误类型
-```
-
-所以我们安装 Python SDK：
+安装：
 
 ```bash
 pip install openai
 ```
 
-确认：
-
-```bash
-pip show openai
-```
-
----
-
-## 7.2 创建 `app/llm.py`
-
-项目现在变成：
-
-```text
-mini--mm-agent/
-├── .env
-├── .env.example
-├── .gitignore
-└── app/
-    ├── main.py
-    ├── config.py
-    └── llm.py      ← 新建
-```
-
-创建：
-
-```bash
-touch app/llm.py
-```
-
-先写最简单的**同步版本**：
+创建 `app/llm.py`，先写最简单的同步版本：
 
 ```python
 from openai import OpenAI
@@ -1132,155 +722,32 @@ def ask_model(user_input: str):
     return response.output_text
 ```
 
-为什么现在先用同步 `OpenAI`，而不是马上上 `AsyncOpenAI`？
-
-因为这一章只想回答一个问题：
-
-> **“模型 API 到底能不能成功调用？”**
-
-异步会在后面进入 Web 服务时再引入。
-
----
-
-## 7.3 `client = OpenAI(...)` 是什么？
-
-```python
-client = OpenAI(
-    api_key=API_KEY,
-    base_url=BASE_URL,
-)
-```
-
-可以理解成：
-
-> 创建一个“模型 API 客户端”。
-
-其中：
+这里：
 
 ```text
-api_key
-→ 用来认证
+client
+→ 模型 API 客户端
 
-base_url
-→ 告诉 SDK 请求发给哪个服务
-```
+model
+→ 使用哪个模型
 
-如果你使用 OpenAI 官方 API，通常使用官方 Base URL。
-
-如果你使用第三方兼容服务，则填它提供的地址。
-
----
-
-## 7.4 `client.responses.create(...)` 到底在发送什么？
-
-核心：
-
-```python
-response = client.responses.create(
-    model=MODEL_NAME,
-    instructions="你是一个简洁、清楚的 AI 助手。",
-    input=user_input,
-)
-```
-
-先认识三个字段。
-
-### `model`
-
-```python
-model=MODEL_NAME
-```
-
-告诉服务：
-
-> 这次请求使用哪个模型。
-
-### `input`
-
-```python
-input=user_input
-```
-
-就是当前真正要交给模型处理的输入。
-
-例如：
-
-```text
-请用一句话解释什么是 AI Agent
-```
-
-### `instructions`
-
-```python
-instructions="你是一个简洁、清楚的 AI 助手。"
-```
-
-它用于告诉模型更高层的行为要求。
-
-可以先把它理解成：
-
-```text
 instructions
-→ 你应该以什么方式工作
+→ 模型应该怎么工作
 
 input
-→ 这一次用户具体问什么
-```
+→ 当前用户真正的问题
 
----
-
-## 7.5 为什么是 `response.output_text`？
-
-调用成功后返回的是一个 Response 对象。
-
-Responses API 的 `output` 不一定只有纯文本；以后还可能出现：
-
-```text
-message
-function_call
-reasoning item
-其他类型的 output item
-```
-
-如果我们这一章只想取得最终文字，SDK 提供了方便的：
-
-```python
 response.output_text
+→ 聚合后的文本回答
 ```
 
-所以：
-
-```python
-return response.output_text
-```
-
-就能取得模型生成的文本。
-
-等到 Tool Calling 章节，我们会开始直接查看：
-
-```python
-response.output
-```
-
----
-
-## 7.6 直接在终端测试，不要急着改 FastAPI
-
-执行：
+测试：
 
 ```bash
 python -c "from app.llm import ask_model; print(ask_model('你好，请只回答：连接成功'))"
 ```
 
-如果配置正常，你应该看到类似：
-
-```text
-连接成功
-```
-
-模型也可能加少量标点或不同措辞，只要确实返回正常文本即可。
-
-这说明：
+如果看到正常模型回答，说明：
 
 ```text
 .env
@@ -1289,177 +756,42 @@ config.py
 ↓
 llm.py
 ↓
-SDK
-↓
 Responses API
 ↓
 模型
 ↓
-Python 得到 output_text
+output_text
 ```
 
-整个链路已经通了。
+已经打通。
+
+如果是第三方 OpenAI-compatible 服务，必须确认它真的支持 Responses API；“兼容 OpenAI”不等于所有接口和字段都兼容。
 
 ---
 
-## 7.7 如果报错，应该先看哪一层？
+# 第 8 章：把 Responses API 接进 FastAPI —— 从脚本变成 AI 后端
 
-常见情况：
-
-### 401 / Authentication 错误
-
-优先检查：
-
-```text
-API_KEY
-```
-
-### 404 / Endpoint 不存在
-
-优先检查：
-
-```text
-BASE_URL
-第三方服务是否支持 Responses API
-```
-
-### model not found
-
-检查：
-
-```text
-MODEL_NAME
-```
-
-### Connection / Timeout
-
-可能是：
-
-```text
-网络
-代理
-第三方服务状态
-BASE_URL
-```
-
-不要一看到错误就同时改十个地方。
-
-先根据错误类型缩小范围。
-
----
-
-## 7.8 为什么“OpenAI-compatible”仍然可能调用失败？
-
-第三方服务写“OpenAI-compatible”时，可能表示：
-
-```text
-兼容某些请求格式
-```
-
-但不一定意味着：
-
-```text
-Responses API
-Function Calling
-Streaming Events
-所有字段
-```
-
-全部兼容。
-
-所以这个教程如果用第三方服务，至少要确认：
-
-```text
-是否有 /responses
-是否支持你要使用的模型
-后面是否支持 function tools
-```
-
----
-
-### 第 7 章检查清单
-
-```text
-[ ] openai Python SDK 已安装
-[ ] app/llm.py 已创建
-[ ] OpenAI client 能初始化
-[ ] client.responses.create 能成功返回
-[ ] 能解释 model / input / instructions
-[ ] 能通过 response.output_text 得到文字
-```
-
-### 本章小练习
-
-不要改任何其他代码，只把测试问题换成：
-
-```text
-请用三句话解释 FastAPI 是什么
-```
-
-确认模型能正常回答。
-
-### 你现在应该能回答
-
-> 到目前为止，这个程序是不是 Agent？为什么？
-
-答案应该是：**还不是。**
-
-现在它只是一个能调用大模型的 Python 程序，还没有工具和 Agent Loop。
-
----
-
-# 第 8 章：把 Responses API 接进 FastAPI —— 从脚本变成真正的 AI 后端
-
-> **本章目标**：让 `POST /responses` 不再复读用户，而是返回真实模型回答。  
-> **完成效果**：Swagger 中提交一句话，后端调用模型后返回结果。  
-> **核心知识**：HTTP → Python → 模型 API、同步与异步、LLM Gateway。
+> **本章目标**：让 `POST /responses` 返回真实模型回答。  
+> **完成效果**：Swagger 提交一句话，后端调用模型并返回结果。  
+> **核心知识**：HTTP → FastAPI → 模型 API、同步与异步、LLM Gateway。
 
 ![一次请求是如何流动的](docs/images/request-flow.svg)
 
-现在我们手上已经有：
+现在我们已经分别验证了：
 
 ```text
-第 5 章：POST /responses 能收 JSON
-
-第 7 章：ask_model() 能调用真实模型
+POST /responses 可以收 JSON
 ```
 
-这一章做的事情就是把两条链拼起来：
+和：
 
 ```text
-POST /responses
-↓
-FastAPI
-↓
-模型 API
-↓
-返回回答
+Python 可以调用 Responses API
 ```
 
----
+现在把两条链拼起来。
 
-## 8.1 先看最直觉的写法
-
-理论上可以直接在 `main.py` 中：
-
-```python
-@app.post("/responses")
-def create_response(request: ResponseRequest):
-    reply = ask_model(request.input)
-    return {"output": reply}
-```
-
-这已经可以工作。
-
-但我们的模型调用属于网络 I/O。
-
-后端以后可能同时服务多个请求，所以现在开始引入异步版本。
-
----
-
-## 8.2 把 `OpenAI` 改成 `AsyncOpenAI`
-
-打开 `app/llm.py`，改成：
+模型 API 是网络 I/O，因此从这里开始使用 `AsyncOpenAI`：
 
 ```python
 from openai import AsyncOpenAI
@@ -1496,131 +828,9 @@ async def create_model_response(
     return await client.responses.create(**kwargs)
 ```
 
-现在先不要管：
+再让 Route 变成异步：
 
 ```python
-previous_response_id
-```
-
-它是下一章的主角。
-
-这一章只关注：
-
-```python
-async def
-await
-```
-
----
-
-## 8.3 `async def` 和 `await` 先怎么理解？
-
-网络请求经常需要等待：
-
-```text
-你的 Python
-↓ 发请求
-网络中等待
-↓
-模型服务器生成
-↓
-结果回来
-```
-
-等待网络期间，CPU 并不是一直在做有意义的计算。
-
-所以异步代码允许事件循环在等待时处理别的工作。
-
-先用一个不完全严谨、但很实用的理解：
-
-```text
-async def
-→ 这个函数可以进行异步等待
-
-await
-→ 这里要等一个异步操作完成
-```
-
-并且通常：
-
-```python
-await ...
-```
-
-要写在：
-
-```python
-async def ...
-```
-
-里面。
-
----
-
-## 8.4 为什么加一层 `create_model_response()`？
-
-你可能会问：
-
-> 为什么不在每个 API Route 中直接写 `client.responses.create()`？
-
-因为以后：
-
-```text
-普通回答
-流式回答
-Agent
-工具循环
-```
-
-都会调用同一个模型服务。
-
-如果每个地方都自己初始化 SDK 和配置：
-
-```text
-BASE_URL 到处出现
-MODEL_NAME 到处出现
-公共 instructions 到处出现
-```
-
-维护会越来越乱。
-
-所以我们把 `llm.py` 当作一个很小的 **LLM Gateway**：
-
-```text
-项目其他模块
-↓
-create_model_response(...)
-↓
-llm.py
-↓
-真正知道 SDK / API_KEY / BASE_URL / MODEL_NAME
-```
-
----
-
-## 8.5 修改 `app/main.py`
-
-这一阶段先不做工程分层，直接把模型接进去：
-
-```python
-from fastapi import FastAPI
-from pydantic import BaseModel
-
-from app.llm import create_model_response
-
-
-app = FastAPI()
-
-
-class ResponseRequest(BaseModel):
-    input: str
-
-
-@app.get("/")
-def home():
-    return {"message": "Hello Mini Agent"}
-
-
 @app.post("/responses")
 async def create_response(request: ResponseRequest):
     response = await create_model_response(
@@ -1632,135 +842,7 @@ async def create_response(request: ResponseRequest):
     }
 ```
 
-注意这里的传播关系：
-
-```text
-client.responses.create 是异步
-       ↑
-create_model_response() 变 async
-       ↑
-调用它的 API Route 也变 async
-```
-
----
-
-## 8.6 测试真正的 AI API
-
-如果 Uvicorn 已经停止：
-
-```bash
-uvicorn app.main:app --reload --port 8001
-```
-
-打开：
-
-```text
-http://127.0.0.1:8001/docs
-```
-
-调用：
-
-```text
-POST /responses
-```
-
-Body：
-
-```json
-{
-  "input": "请用一句话解释什么是 AI Agent"
-}
-```
-
-现在返回的 `output` 应该是模型真实生成的内容，而不是：
-
-```text
-你输入了：...
-```
-
-链路已经变成：
-
-```text
-Swagger / curl
-↓ POST JSON
-FastAPI
-↓
-create_model_response()
-↓
-Responses API
-↓
-response.output_text
-↓
-FastAPI JSON Response
-```
-
----
-
-## 8.7 为什么这一章还不马上拆 `routes.py / services/`？
-
-因为我们希望你先看清楚主线。
-
-现在只有：
-
-```text
-main.py
-↓
-llm.py
-```
-
-非常容易理解。
-
-等业务继续增加：
-
-```text
-Session
-SQLite
-Reset
-Streaming
-Agent
-```
-
-`main.py` 开始变大以后，第 12 章再进行重构。
-
-这比一开始就给你七八个文件夹更容易理解“为什么要分层”。
-
----
-
-### 第 8 章检查清单
-
-```text
-[ ] app/llm.py 已切换为 AsyncOpenAI
-[ ] create_model_response 是 async def
-[ ] SDK 调用前使用 await
-[ ] /responses Route 也是 async def
-[ ] Swagger 能拿到真实模型回答
-```
-
-### 本章小练习
-
-把：
-
-```python
-DEFAULT_INSTRUCTIONS
-```
-
-临时改成：
-
-```text
-你是一名 Python 老师，回答尽量使用初学者能理解的语言。
-```
-
-重新提同一个问题，观察回答风格有没有变化。
-
-然后再恢复原设置。
-
-### 你现在应该能回答
-
-> 浏览器调用我们的 `/responses`，和我们的后端调用大模型 Responses API，是不是同一件请求？
-
-不是。
-
-它们是**两段不同的网络通信**：
+现在的两段网络通信是：
 
 ```text
 客户端 → 你的 FastAPI
@@ -1772,484 +854,81 @@ DEFAULT_INSTRUCTIONS
 你的 FastAPI → 模型 API
 ```
 
+不是同一条请求。
+
 ---
 
-# 第 9 章：多轮对话与 `previous_response_id` —— 模型为什么能“记住上一轮”？
+# 第 9 章：多轮对话与 `previous_response_id` —— 模型为什么能继续上一轮？
 
 > **本章目标**：让第二次模型请求可以继续第一轮上下文。  
-> **完成效果**：先告诉模型一个信息，第二次请求能基于上一轮继续回答。  
-> **核心知识**：Response ID、conversation state、`previous_response_id`、模型记忆的本质。
+> **完成效果**：先告诉模型一个信息，下一轮能基于上一轮回答。  
+> **核心知识**：Response ID、conversation state、`previous_response_id`。
 
-到目前为止，每一次调用都是独立的：
-
-```text
-请求 1：我叫小明
-→ 模型回答
-
-请求 2：我叫什么？
-→ 如果没有上下文，模型不知道
-```
-
-一个常见误解是：
-
-> “模型服务器是不是自动记住我刚才说了什么？”
-
-不能这样理解。
-
-连续对话需要某种**状态连接机制**。
-
-Responses API 提供的一种方式就是：
+第一次：
 
 ```python
-previous_response_id
-```
-
----
-
-## 9.1 每次 Response 都有自己的 `id`
-
-例如：
-
-```python
-response1 = await client.responses.create(
-    model=MODEL_NAME,
-    instructions="你是一个AI助手。",
-    input="我叫小明，请记住我的名字。",
+first = await create_model_response(
+    "我叫小明，请记住我的名字。"
 )
 ```
 
-返回对象里有：
-
-```python
-response1.id
-```
-
-它大概长得类似：
-
-```text
-resp_xxxxxxxxxxxxx
-```
-
-你可以把它理解成：
-
-> “模型服务端这一轮 Response 的编号。”
-
----
-
-## 9.2 第二轮把第一轮 ID 传回去
-
-```python
-response2 = await client.responses.create(
-    model=MODEL_NAME,
-    instructions="你是一个AI助手。",
-    input="我叫什么名字？",
-    previous_response_id=response1.id,
-)
-```
-
-结构变成：
-
-```text
-第 1 轮
-input = 我叫小明
-↓
-Response 1
-id = resp_abc
-
-第 2 轮
-input = 我叫什么？
-previous_response_id = resp_abc
-↓
-模型继续上一条 Response 的上下文
-```
-
-所以：
-
-```python
-previous_response_id
-```
-
-并不是“上一条文字答案”。
-
-它是：
-
-> **上一轮 Response 对象的 ID。**
-
----
-
-## 9.3 先用一个独立脚本验证，不急着放进 FastAPI
-
-可以临时新建：
-
-```text
-test_conversation.py
-```
-
-写：
-
-```python
-import asyncio
-
-from app.llm import create_model_response
-
-
-async def main():
-    first = await create_model_response(
-        "我叫小明，请记住我的名字。"
-    )
-
-    print("第一轮：", first.output_text)
-    print("response id:", first.id)
-
-    second = await create_model_response(
-        "我叫什么名字？",
-        previous_response_id=first.id,
-    )
-
-    print("第二轮：", second.output_text)
-
-
-asyncio.run(main())
-```
-
-运行：
-
-```bash
-python test_conversation.py
-```
-
-第二轮正常情况下应该知道“小明”。
-
----
-
-## 9.4 为什么我们每一轮仍然传 `instructions`？
-
-在本教程的封装中：
-
-```python
-create_model_response(...)
-```
-
-每一轮都会重新设置当前请求需要的 `instructions`。
-
-这样做的好处是：
-
-```text
-应用行为规则明确写在当前调用里
-```
-
-而不是依赖“上一轮也许已经设置过”。
-
-对初学者来说，这种写法更容易追踪。
-
----
-
-## 9.5 现在出现了一个新的后端问题
-
-单个测试脚本很好办：
+拿到：
 
 ```python
 first.id
 ```
 
-直接存在变量里。
+第二次：
 
-但真实 FastAPI 有很多请求。
-
-比如：
-
-```text
-浏览器 A
-上一轮 response_id = resp_111
-
-浏览器 B
-上一轮 response_id = resp_999
+```python
+second = await create_model_response(
+    "我叫什么名字？",
+    previous_response_id=first.id,
+)
 ```
 
-当下一条 HTTP 请求到来时，服务器必须知道：
+这里的 `previous_response_id` 不是上一条回答文本，而是：
 
-> “你属于 A 还是 B？”
+> 上一轮 Response 对象的 ID。
 
-于是我们需要一个自己的：
+所以可以把它理解成一条“继续上一轮上下文”的指针。
 
-```text
-session_id
-```
-
-例如：
+真实 Web 应用还需要自己的 `session_id`：
 
 ```text
 session-a → resp_111
 session-b → resp_999
 ```
 
-这就是下一章数据库要保存的东西。
+否则所有用户共用一个全局 `previous_response_id` 就会串会话。
+
+> 使用 `previous_response_id` 时，本教程每次仍然重新传当前 `instructions`。不要把上一轮的 instructions 当成自动永久继承的应用配置。
 
 ---
 
-## 9.6 为什么不用一个全局变量？
+# 第 10 章：SQLite 保存 Session 与消息 —— 把状态从内存放到硬盘
 
-你当然可以暂时写：
+> **本章目标**：保存 `session_id → previous_response_id`，并记录本地消息历史。  
+> **完成效果**：服务器重启后数据库仍然存在。  
+> **核心知识**：SQLite、表、持久化、SELECT / INSERT / DELETE。
 
-```python
-previous_response_id = None
-```
-
-然后所有请求共享它。
-
-单人实验似乎能工作。
-
-但只要两个人同时使用：
-
-```text
-用户 A 的上一轮
-↓
-全局变量
-↑
-用户 B 的上一轮
-```
-
-就会互相覆盖，发生“串会话”。
-
-所以真实后端不能只保存：
-
-```text
-一个 previous_response_id
-```
-
-而要保存：
-
-```text
-session_id → previous_response_id
-```
-
----
-
-## 9.7 一个需要知道的现实问题：Response ID 不是你自己的永久数据库
-
-如果直接使用 OpenAI 官方 Responses API，Response 对象默认会由服务端保存一段时间；官方文档当前说明默认 Response 对象有保存策略，并且 `previous_response_id` 用来串联上下文。
-
-但是：
-
-- 你的应用仍然需要保存“哪个用户对应哪个 Response ID”；
-- 第三方兼容服务的存储策略可能完全不同；
-- 如果你未来需要长期历史、搜索、审计或迁移，只保存 Response ID 并不够。
-
-所以我们下一章仍然会建立自己的 SQLite。
-
----
-
-### 第 9 章检查清单
-
-```text
-[ ] 知道 response.id 是什么
-[ ] 知道 previous_response_id 传的不是文本
-[ ] 能完成两轮连续模型调用
-[ ] 知道全局 previous_response_id 会导致用户串会话
-[ ] 知道应用还需要自己的 session_id
-```
-
-### 本章小练习
-
-把测试脚本改成三轮：
-
-```text
-第 1 轮：我最喜欢蓝色
-第 2 轮：我最喜欢什么颜色？
-第 3 轮：请把这个颜色翻译成英文
-```
-
-每次都把上一轮：
-
-```python
-response.id
-```
-
-作为下一轮的 `previous_response_id`。
-
-### 你现在应该能回答
-
-> “多轮对话记忆”最基础的本质是什么？
-
-一个合格回答是：
-
-> **下一轮请求必须能够重新获得上一轮上下文；`previous_response_id` 是 Responses API 提供的一种上下文连接方式。**
-
----
-
-# 第 10 章：SQLite 保存 Session 与消息 —— 让服务器重启后还能找到会话
-
-> **本章目标**：给每个 `session_id` 保存对应的 `previous_response_id`，并保存本地消息历史。  
-> **完成效果**：FastAPI 重启以后，SQLite 数据仍然存在。  
-> **核心知识**：SQLite、表、持久化、SELECT / INSERT / DELETE、Session 映射。
-
-上一章我们的核心问题是：
-
-```text
-session-a → resp_111
-session-b → resp_999
-```
-
-这个映射保存在哪里？
-
-如果只放 Python 变量：
-
-```python
-sessions = {}
-```
-
-服务器一重启：
-
-```text
-内存清空
-↓
-sessions = {}
-↓
-映射消失
-```
-
-所以需要**持久化**。
-
----
-
-## 10.1 什么叫“持久化”？
-
-可以简单理解：
-
-```text
-内存
-→ 程序关闭后通常消失
-
-数据库 / 文件
-→ 程序关闭后数据仍然存在
-```
-
-我们第一版选择 SQLite。
-
-原因是它非常适合教学：
-
-```text
-不需要安装独立数据库服务器
-不需要开端口
-不需要数据库账号
-一个文件就是数据库
-```
-
-最终你会在项目根目录看到：
-
-```text
-chat.db
-```
-
----
-
-## 10.2 为什么需要两张表？
-
-我们保存：
+我们保存两张表：
 
 ```text
 sessions
-→ 当前 session 最新的 previous_response_id
+→ session_id 对应最新 previous_response_id
 
 messages
-→ 我们自己的本地用户/助手历史
+→ 本地 user / assistant 消息
 ```
 
-它们的职责不一样。
-
-### `sessions`
-
-回答：
-
-> 当前这个浏览器下一次应该接哪一轮模型上下文？
-
-例如：
-
-```text
-session-a | resp_111
-session-b | resp_999
-```
-
-### `messages`
-
-回答：
-
-> 用户和助手实际说过什么？
-
-例如：
-
-```text
-1 | session-a | user      | 我叫小明
-2 | session-a | assistant | 你好小明
-3 | session-a | user      | 我叫什么？
-```
-
-本地消息以后还可以用于：
-
-- 网页展示历史；
-- Debug；
-- 审计；
-- 数据迁移；
-- 不再依赖某个模型供应商时重新构建上下文。
-
----
-
-## 10.3 创建 `app/db.py`
-
-```bash
-touch app/db.py
-```
-
-先写：
+数据库位置：
 
 ```python
-import sqlite3
-from pathlib import Path
-
-
 DB_PATH = Path(__file__).resolve().parent.parent / "chat.db"
 ```
 
-### 这一行路径代码是什么意思？
-
-`__file__` 指当前：
-
-```text
-app/db.py
-```
-
-然后：
-
-```text
-.resolve()
-→ 得到完整绝对路径
-
-.parent
-→ app/
-
-.parent.parent
-→ 项目根目录
-```
-
-最后：
-
-```python
-/ "chat.db"
-```
-
-所以数据库位置稳定在：
-
-```text
-mini--mm-agent/chat.db
-```
-
-而不是依赖你从哪个 Terminal 目录启动 Python。
-
----
-
-## 10.4 初始化数据库
-
-继续写：
+初始化：
 
 ```python
 def init_db():
@@ -2271,132 +950,7 @@ def init_db():
         """)
 ```
 
-`CREATE TABLE IF NOT EXISTS` 可以读成：
-
-> 如果表还不存在，就创建；如果已经存在，不要因为重复启动程序而报错。
-
----
-
-## 10.5 保存一条消息
-
-```python
-def save_message(session_id: str, role: str, content: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            INSERT INTO messages (session_id, role, content)
-            VALUES (?, ?, ?)
-            """,
-            (session_id, role, content),
-        )
-```
-
-这里的 SQL：
-
-```sql
-INSERT INTO messages ...
-```
-
-意思：
-
-> 往 messages 表新增一行。
-
-### 为什么 SQL 里面用 `?`，不自己拼字符串？
-
-因为参数化查询更安全，也可以避免很多引号/转义问题。
-
-不要写成：
-
-```python
-f"INSERT ... '{content}'"
-```
-
-这种字符串拼接方式以后容易出安全和格式问题。
-
----
-
-## 10.6 查询某个 Session 的最新 Response ID
-
-```python
-def get_previous_response_id(session_id: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        row = conn.execute(
-            """
-            SELECT previous_response_id
-            FROM sessions
-            WHERE session_id = ?
-            """,
-            (session_id,),
-        ).fetchone()
-
-    return row[0] if row else None
-```
-
-这句 SQL：
-
-```sql
-SELECT previous_response_id
-FROM sessions
-WHERE session_id = ?
-```
-
-翻译成人话：
-
-> 在 `sessions` 表里，找到这个 session，然后把它对应的 `previous_response_id` 给我。
-
-如果没找到：
-
-```python
-None
-```
-
-代表这是新会话。
-
-注意 Python 中只有一个元素的 tuple 要写：
-
-```python
-(session_id,)
-```
-
-最后那个逗号很重要。
-
----
-
-## 10.7 保存 / 更新最新 Response ID
-
-```python
-def set_previous_response_id(session_id: str, response_id: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            INSERT INTO sessions (session_id, previous_response_id)
-            VALUES (?, ?)
-            ON CONFLICT(session_id)
-            DO UPDATE SET previous_response_id = excluded.previous_response_id
-            """,
-            (session_id, response_id),
-        )
-```
-
-这段稍微高级一点。
-
-它想表达的是：
-
-```text
-如果这个 session 以前不存在
-→ INSERT
-
-如果这个 session 已经存在
-→ UPDATE 它最新的 response id
-```
-
-所以每个 session 只保留一个“当前最新 Response 指针”。
-
----
-
-## 10.8 更新请求模型：增加 `session_id`
-
-`app/main.py` 中：
+请求现在增加：
 
 ```python
 class ResponseRequest(BaseModel):
@@ -2404,499 +958,2317 @@ class ResponseRequest(BaseModel):
     input: str
 ```
 
-以后请求变成：
-
-```json
-{
-  "session_id": "user-a",
-  "input": "你好"
-}
-```
-
-现在 FastAPI 不只知道：
+每次请求的核心流程：
 
 ```text
-用户说了什么
-```
-
-还知道：
-
-```text
-这句话属于哪一个会话
-```
-
----
-
-## 10.9 把数据库和 Responses API 连起来
-
-在 `app/main.py` 中导入：
-
-```python
-from app.db import (
-    get_previous_response_id,
-    init_db,
-    save_message,
-    set_previous_response_id,
-)
-```
-
-创建 FastAPI 后初始化：
-
-```python
-app = FastAPI()
-
-init_db()
-```
-
-然后把 `/responses` 改成：
-
-```python
-@app.post("/responses")
-async def create_response(request: ResponseRequest):
-    previous_response_id = get_previous_response_id(
-        request.session_id
-    )
-
-    response = await create_model_response(
-        request.input,
-        previous_response_id=previous_response_id,
-    )
-
-    save_message(
-        request.session_id,
-        "user",
-        request.input,
-    )
-
-    save_message(
-        request.session_id,
-        "assistant",
-        response.output_text,
-    )
-
-    set_previous_response_id(
-        request.session_id,
-        response.id,
-    )
-
-    return {
-        "output": response.output_text
-    }
-```
-
-整个流程现在第一次变得比较像一个真正应用：
-
-```text
-POST /responses
+查 session 对应 previous_response_id
 ↓
-session_id = user-a
-↓
-SQLite 查询 user-a 的 previous_response_id
-↓
-Responses API
-↓
-模型回答
+调用模型
 ↓
 保存 user 消息
 ↓
 保存 assistant 消息
 ↓
-更新 user-a 最新 response.id
+更新最新 response.id
+```
+
+可以直接使用 sqlite3 CLI 查看真实数据：
+
+```bash
+sqlite3 chat.db
+```
+
+```sql
+.tables
+SELECT * FROM sessions;
+SELECT * FROM messages;
+.quit
+```
+
+如果出现 `no such table`，第一件事先执行：
+
+```bash
+pwd
+```
+
+确认你打开的是项目根目录的 `chat.db`，而不是在其他目录误创建了新的空数据库。
+
+---
+
+# 第 11 章：Reset —— “开始新会话”到底是在清什么？
+
+> **本章目标**：给用户一个明确的方法，主动结束当前上下文链并开始新会话。  
+> **完成效果**：调用 `POST /responses/reset` 后，同一个 `session_id` 再提问时不再沿用旧的 `previous_response_id`。  
+> **核心知识**：Session 生命周期、状态清理、DELETE、应用状态与模型服务端状态的区别。
+
+到这里，我们已经能让一个 `session_id` 持续对话。
+
+这很好，但很快会遇到一个真实问题：
+
+```text
+我刚才在聊 Python
 ↓
-返回结果
+现在我想开始一个完全新的主题
+↓
+旧上下文还要继续带着吗？
+```
+
+很多聊天产品里的：
+
+```text
+新对话
+New Chat
+Reset
+```
+
+本质上都在解决类似问题。
+
+---
+
+## 11.1 先回忆：我们当前到底保存了什么状态？
+
+SQLite 中有两部分：
+
+```text
+messages
+→ 我们自己保存的历史消息
+
+sessions
+→ session_id 对应的 latest previous_response_id
+```
+
+假设：
+
+```text
+session_id = user-a
+```
+
+数据库里可能是：
+
+```text
+sessions
+user-a → resp_abc123
+```
+
+同时 `messages` 中还有：
+
+```text
+user-a | user      | 我叫小明
+user-a | assistant | 你好小明
+user-a | user      | 我叫什么？
+user-a | assistant | 你叫小明
+```
+
+如果要真正从“本应用的角度”开始一段新会话，我们至少需要：
+
+```text
+1. 不再继续旧 previous_response_id
+2. 清掉本地旧消息历史
+```
+
+所以 Reset 不是一句神秘命令。
+
+它就是：
+
+```text
+DELETE messages
++
+DELETE session pointer
 ```
 
 ---
 
-## 10.10 测试两个不同 Session
+## 11.2 在 `app/db.py` 中增加 `clear_session()`
 
-打开 `/docs`。
+打开：
 
-先发送：
+```text
+app/db.py
+```
+
+增加：
+
+```python
+def clear_session(session_id: str):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "DELETE FROM messages WHERE session_id = ?",
+            (session_id,),
+        )
+
+        conn.execute(
+            "DELETE FROM sessions WHERE session_id = ?",
+            (session_id,),
+        )
+```
+
+先别急着复制完就跳过，我们逐句看。
+
+### 第一条 DELETE
+
+```sql
+DELETE FROM messages
+WHERE session_id = ?
+```
+
+意思：
+
+> 删除这个 session 的本地消息。
+
+### 第二条 DELETE
+
+```sql
+DELETE FROM sessions
+WHERE session_id = ?
+```
+
+意思：
+
+> 删除这个 session 保存的 previous_response_id 指针。
+
+所以 Reset 后下一次执行：
+
+```python
+get_previous_response_id(session_id)
+```
+
+会得到：
+
+```python
+None
+```
+
+于是下一次 Responses API 请求不会继续旧链。
+
+---
+
+## 11.3 为什么不是把 `previous_response_id` 改成空字符串？
+
+理论上你可以设计成：
+
+```text
+session-a | ""
+```
+
+但删除整行通常更自然。
+
+因为：
+
+```text
+没有这一行
+→ 这是一个还没有历史的 session
+```
+
+状态更容易理解。
+
+---
+
+## 11.4 定义 Reset 请求格式
+
+我们仍然需要知道：
+
+> 到底要重置哪个 session？
+
+所以在 `app/main.py` 临时增加：
+
+```python
+class ResetRequest(BaseModel):
+    session_id: str
+```
+
+它期待：
 
 ```json
 {
-  "session_id": "user-a",
+  "session_id": "user-a"
+}
+```
+
+---
+
+## 11.5 增加 `/responses/reset`
+
+导入：
+
+```python
+from app.db import clear_session
+```
+
+然后增加：
+
+```python
+@app.post("/responses/reset")
+def reset_response(request: ResetRequest):
+    clear_session(request.session_id)
+
+    return {
+        "message": "session reset"
+    }
+```
+
+这里我们故意使用 POST，而不是 GET。
+
+因为这个请求不是单纯“读取状态”，而是在**修改服务器状态**：它会删除数据库中的内容。
+
+---
+
+## 11.6 按固定顺序测试 Reset
+
+打开：
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+第一步：
+
+```json
+{
+  "session_id": "reset-test",
   "input": "我叫小明，请记住我的名字。"
 }
 ```
 
-然后：
+第二步：
 
 ```json
 {
-  "session_id": "user-a",
+  "session_id": "reset-test",
   "input": "我叫什么名字？"
 }
 ```
 
-同一个 session 应该能够继续上下文。
+正常应该能继续上下文。
 
-接着换：
+第三步调用：
+
+```text
+POST /responses/reset
+```
+
+Body：
 
 ```json
 {
-  "session_id": "user-b",
+  "session_id": "reset-test"
+}
+```
+
+应该得到：
+
+```json
+{
+  "message": "session reset"
+}
+```
+
+第四步，再调用 `/responses`：
+
+```json
+{
+  "session_id": "reset-test",
   "input": "我叫什么名字？"
 }
 ```
 
-`user-b` 不应该自动获得 `user-a` 的上下文。
-
-这就是：
-
-```text
-会话隔离
-```
+现在模型应该不知道你之前说过“小明”。
 
 ---
 
-## 10.11 真正验证“持久化”：重启服务器
-
-现在最关键的测试不是多问一次，而是：
-
-1. 用 `user-a` 建立会话；
-2. `Ctrl + C` 关闭 Uvicorn；
-3. 重新启动 Uvicorn；
-4. 再使用同一个 `session_id` 请求。
-
-SQLite 文件仍然存在，所以我们的 session 映射不会因为 Python 内存清空而消失。
-
-> 如果第三方 Responses API 本身不支持长期通过 `previous_response_id` 恢复上下文，那么本地 SQLite 虽然保存了 ID，供应商端仍可能无法解析它。第三方服务需要按自己的文档确认。
-
----
-
-## 10.12 直接打开 SQLite 看看里面到底有什么
-
-Ubuntu 如果没有 sqlite3 CLI：
-
-```bash
-sudo apt update
-sudo apt install sqlite3
-```
-
-一定先确认当前目录：
-
-```bash
-pwd
-```
-
-应该是：
-
-```text
-/home/yourname/mini--mm-agent
-```
-
-然后：
-
-```bash
-sqlite3 chat.db
-```
+## 11.7 Reset 后直接去数据库看
 
 进入：
 
-```text
-sqlite>
-```
-
-查看表：
-
-```sql
-.tables
-```
-
-应该看到：
-
-```text
-messages  sessions
-```
-
-查看 Session：
-
-```sql
-SELECT * FROM sessions;
-```
-
-查看消息：
-
-```sql
-SELECT * FROM messages;
-```
-
-退出：
-
-```sql
-.quit
-```
-
-### 为什么有时会出现 `no such table: messages`？
-
-一个非常经典的原因是：
-
-你在：
-
-```text
-/home/yourname
-```
-
-执行：
-
 ```bash
 sqlite3 chat.db
 ```
 
-SQLite 发现这个文件不存在，就在当前目录创建了一个**新的空数据库**。
+查询：
 
-但真正数据库其实在：
+```sql
+SELECT *
+FROM sessions
+WHERE session_id = 'reset-test';
+```
+
+应该查不到对应行。
+
+再：
+
+```sql
+SELECT *
+FROM messages
+WHERE session_id = 'reset-test';
+```
+
+也应该为空。
+
+这时候你就能把：
 
 ```text
-/home/yourname/mini--mm-agent/chat.db
+API 行为
 ```
 
-所以遇到数据库奇怪问题时，第一反应先：
+和：
 
-```bash
-pwd
+```text
+数据库真实变化
 ```
 
-路径意识非常重要。
+对应起来。
 
 ---
 
-## 10.13 `SELECT / INSERT / DELETE` 先认识这三个词
+## 11.8 一个非常重要的边界：Reset 不一定等于删除模型供应商保存的数据
 
-这一阶段不用系统学习 SQL。
-
-先记：
+我们当前的 `reset` 做的是：
 
 ```text
-SELECT
-→ 查数据
-
-INSERT
-→ 新增数据
-
-DELETE
-→ 删除数据
+删除本地 messages
+删除本地 previous_response_id
 ```
 
-后面 Reset 会使用 `DELETE`。
+也就是：
+
+> **我们的应用以后不再继续引用旧 Response 链。**
+
+这不应该自动理解成：
+
+> “远端模型服务已经永久删除了所有旧 Response 数据。”
+
+模型供应商是否存储 Response、保存多久、如何删除，是另一层 API 和数据政策问题。
+
+所以以后做真实产品时要区分：
+
+```text
+应用里的“新会话”
+```
+
+和：
+
+```text
+远端数据删除 / 隐私删除请求
+```
+
+不是同一个动作。
 
 ---
 
-### 第 10 章检查清单
+### 第 11 章检查清单
 
 ```text
-[ ] 项目根目录出现 chat.db
-[ ] messages 表存在
-[ ] sessions 表存在
-[ ] 同一个 session 可以继续上下文
-[ ] 不同 session 不会串上下文
-[ ] 能通过 sqlite3 CLI 查看数据
-[ ] 知道 Python 内存和数据库持久化的区别
+[ ] db.py 有 clear_session()
+[ ] Reset 同时清理 messages 和 sessions
+[ ] /responses/reset 能在 Swagger 中调用
+[ ] Reset 后 get_previous_response_id 会返回 None
+[ ] Reset 后模型不再沿用旧上下文
+[ ] 知道“开始新会话”和“删除供应商端数据”不是同一概念
 ```
 
 ### 本章小练习
 
-在 SQLite 中执行：
-
-```sql
-SELECT role, content
-FROM messages
-WHERE session_id = 'user-a';
-```
-
-尝试解释：
+增加一个临时接口：
 
 ```text
-SELECT
-FROM
-WHERE
+GET /debug/session/{session_id}
 ```
 
-各自在表达什么。
+让它只返回这个 session 当前的：
+
+```text
+previous_response_id
+```
+
+然后观察 Reset 前后有什么变化。
+
+练习完成后建议删除这个 Debug 接口，避免正式项目随便暴露内部状态。
 
 ### 你现在应该能回答
 
-> 为什么已经有 `previous_response_id`，我们还要自己使用 SQLite？
-
-一个比较完整的回答应该包括：
-
-1. 应用必须保存 `session_id → previous_response_id` 的映射；
-2. 本地消息历史还有展示、调试、审计和迁移价值；
-3. 我们不能把自己的应用状态完全寄托在 Python 内存里。
+> 为什么 Reset 需要同时清理 `messages` 和 `previous_response_id`？只删其中一个会发生什么？
 
 ---
 
-# 第 11 章：Reset —— 开始一段新会话
+# 第 12 章：把代码拆开 —— 从“一个能跑的 main.py”到真正项目结构
 
-> **本章目标**：允许用户主动清掉旧上下文。  
-> **完成效果**：调用 `/responses/reset` 后旧会话不再继续。  
-> **核心知识**：状态清理、Session 生命周期。
-
-Reset 的逻辑很朴素：
-
-```text
-删除这个 session 的 messages
-+
-删除这个 session 的 previous_response_id
-```
-
-所以“会话重置”并不神秘，本质上就是清掉服务器保存的状态。
-
-最终项目中的：
-
-```python
-def clear_session(session_id: str):
-    ...
-```
-
-会同时删除这两部分数据。
-
----
-
-# 第 12 章：把代码拆开 —— 从“能跑”到“能维护”
-
-> **本章目标**：理解为什么真实项目会有很多文件夹。  
-> **完成效果**：能说出 `routes.py / services / llm.py / db.py / tools.py` 各自负责什么。  
-> **核心知识**：职责分离、项目分层、Service、Gateway。
+> **本章目标**：把越来越长的 `main.py` 拆成职责清晰的模块。  
+> **完成效果**：`main.py` 只负责组装应用，Route、业务逻辑、模型调用、数据库各自放在合适位置。  
+> **核心知识**：Refactor、APIRouter、Service、Gateway、职责分离、Composition Root。
 
 ![Mini Agent 项目结构](docs/images/project-structure.svg)
 
-到这里，如果所有代码仍然写在 `main.py`，它会越来越长。
-
-所以最终项目拆成：
+到第 11 章为止，如果你一直跟着写，`app/main.py` 里已经开始同时出现：
 
 ```text
-app/main.py
-→ 组装 FastAPI
-
-app/api/routes.py
-→ HTTP 接口
-
-app/services/response_service.py
-→ 普通 Responses 业务
-
-app/services/agent_service.py
-→ Tool Executor + Agent Loop
-
-app/llm.py
-→ Responses API Gateway
-
-app/db.py
-→ SQLite
-
-app/tools.py
-→ Tool 定义和注册
-
-app/sandbox.py
-→ E2B 代码执行
+FastAPI 创建
+Pydantic Request Model
+GET /
+POST /responses
+POST /responses/reset
+数据库查询
+模型调用
+消息保存
 ```
 
-看到大型项目的 `api / services / infra / domain` 时，先问：
+它还能跑。
 
-> **这一层的职责是什么？**
+但如果继续把 Streaming、Tool Calling、Agent Loop 全部塞进去，最终会变成：
 
-而不是试图一口气读完所有文件。
+```text
+main.py
+├── 路由
+├── 数据库
+├── 模型
+├── Tool
+├── Agent Loop
+├── 日志
+├── E2B
+└── 越来越难找东西
+```
+
+所以现在第一次进行真正的 **Refactor（重构）**。
+
+重构的核心目标是：
+
+> **改变代码组织方式，但不故意改变原有功能。**
 
 ---
 
-# 第 13 章：`async / await`、异常处理和日志
+## 12.1 先理解“按职责拆”，而不是“为了文件多而拆”
 
-> **本章目标**：让项目开始具备真正后端的工程能力。  
-> **完成效果**：模型 API 使用异步调用，错误有日志可查。  
-> **核心知识**：异步 I/O、Exception、Logging。
+我们希望最终变成：
 
-前面已经第一次使用：
+```text
+app/main.py
+→ 应用怎么启动、怎么组装
+
+app/api/routes.py
+→ HTTP 世界：URL、GET、POST、请求与响应
+
+app/services/response_service.py
+→ 一次普通模型请求的业务流程
+
+app/llm.py
+→ 怎么调用模型供应商
+
+app/db.py
+→ 怎么读写 SQLite
+```
+
+未来再加入：
+
+```text
+app/services/agent_service.py
+→ Agent Loop
+
+app/tools.py
+→ Tool 定义和 Registry
+
+app/sandbox.py
+→ E2B
+```
+
+先记住一句：
+
+> **拆文件不是目的，让每个模块只关心自己的问题才是目的。**
+
+---
+
+## 12.2 创建目录
+
+在项目根目录：
+
+```bash
+mkdir -p app/api app/services
+```
+
+创建 Python package 标记文件：
+
+```bash
+touch app/api/__init__.py
+touch app/services/__init__.py
+```
+
+再创建：
+
+```bash
+touch app/api/routes.py
+touch app/services/response_service.py
+```
+
+现在结构：
+
+```text
+app/
+├── main.py
+├── config.py
+├── llm.py
+├── db.py
+│
+├── api/
+│   ├── __init__.py
+│   └── routes.py
+│
+└── services/
+    ├── __init__.py
+    └── response_service.py
+```
+
+---
+
+## 12.3 为什么要有 `__init__.py`？
+
+在现代 Python 中，一些场景下没有它也能工作。
+
+但教学项目里显式放：
+
+```text
+__init__.py
+```
+
+可以很清楚地表达：
+
+> “这个目录属于 Python package。”
+
+以后你会经常看到：
+
+```python
+from app.services.response_service import respond
+```
+
+这种包导入。
+
+---
+
+## 12.4 把普通 Responses 业务搬进 Service
+
+创建：
+
+```text
+app/services/response_service.py
+```
+
+写：
+
+```python
+from app.db import (
+    clear_session,
+    get_previous_response_id,
+    save_message,
+    set_previous_response_id,
+)
+from app.llm import create_model_response
+
+
+async def respond(session_id: str, user_input: str):
+    previous_response_id = get_previous_response_id(
+        session_id
+    )
+
+    response = await create_model_response(
+        user_input,
+        previous_response_id=previous_response_id,
+    )
+
+    reply = response.output_text
+
+    save_message(session_id, "user", user_input)
+    save_message(session_id, "assistant", reply)
+    set_previous_response_id(session_id, response.id)
+
+    return reply
+
+
+def reset_response_session(session_id: str):
+    clear_session(session_id)
+```
+
+### 这层 Service 解决什么问题？
+
+`respond()` 负责的是一条完整“业务流程”：
+
+```text
+根据 session 查上下文
+↓
+调用模型
+↓
+取得文本
+↓
+保存两条消息
+↓
+更新 response id
+↓
+返回 reply
+```
+
+它不是 HTTP，也不是 SQL，更不是 SDK 初始化。
+
+它负责的是：
+
+> **“一次普通 AI 回答在我们应用里应该怎么完成？”**
+
+这就是 Service 很常见的意义。
+
+---
+
+## 12.5 把 HTTP 接口搬到 `routes.py`
+
+创建：
+
+```text
+app/api/routes.py
+```
+
+写：
+
+```python
+from fastapi import APIRouter
+from pydantic import BaseModel
+
+from app.services.response_service import (
+    reset_response_session,
+    respond,
+)
+
+
+router = APIRouter()
+
+
+class ResponseRequest(BaseModel):
+    session_id: str
+    input: str
+
+
+class ResetRequest(BaseModel):
+    session_id: str
+
+
+@router.get("/")
+def home():
+    return {
+        "message": "Mini Agent is running"
+    }
+
+
+@router.post("/responses")
+async def create_response(request: ResponseRequest):
+    reply = await respond(
+        request.session_id,
+        request.input,
+    )
+
+    return {
+        "output": reply
+    }
+
+
+@router.post("/responses/reset")
+def reset_response(request: ResetRequest):
+    reset_response_session(
+        request.session_id
+    )
+
+    return {
+        "message": "session reset"
+    }
+```
+
+注意这里从：
+
+```python
+@app.post(...)
+```
+
+变成：
+
+```python
+@router.post(...)
+```
+
+---
+
+## 12.6 `APIRouter` 到底是什么？
+
+可以把：
+
+```python
+router = APIRouter()
+```
+
+理解成：
+
+> 一个专门收集一组 API Route 的“小路由盒子”。
+
+我们先把：
+
+```text
+GET /
+POST /responses
+POST /responses/reset
+```
+
+注册到 `router`。
+
+然后再由主 FastAPI 应用统一把这个 `router` 装进去。
+
+这样 API 数量越来越多时，就不用全部写在 `main.py`。
+
+---
+
+## 12.7 让 `main.py` 只负责“组装”
+
+把 `app/main.py` 改成：
+
+```python
+from fastapi import FastAPI
+
+from app.api.routes import router
+from app.db import init_db
+
+
+app = FastAPI(
+    title="Mini Agent - Responses API"
+)
+
+init_db()
+
+app.include_router(router)
+```
+
+关键：
+
+```python
+app.include_router(router)
+```
+
+可以理解成：
+
+> 把 `routes.py` 里收集的那一组 API 接入主应用。
+
+现在：
+
+```text
+main.py
+```
+
+终于不再负责所有细节。
+
+---
+
+## 12.8 现在一次请求怎么走？
+
+用户调用：
+
+```text
+POST /responses
+```
+
+路线：
+
+```text
+app/main.py
+↓ include_router
+app/api/routes.py
+↓ respond(...)
+app/services/response_service.py
+├─ app/db.py
+└─ app/llm.py
+```
+
+以后排错时也开始有方向：
+
+```text
+URL / 请求格式不对
+→ 看 routes.py
+
+模型业务顺序不对
+→ 看 response_service.py
+
+Responses API 配置不对
+→ 看 llm.py
+
+SQLite 数据不对
+→ 看 db.py
+```
+
+这就是项目分层带来的直接价值。
+
+---
+
+## 12.9 为什么 `main.py` 可以叫 Composition Root？
+
+这是一个以后会经常遇到的工程词。
+
+我们现在的 `main.py` 做的事情越来越像：
+
+```text
+创建应用
+初始化数据库
+加载中间件
+加载 Router
+```
+
+也就是：
+
+> 把各个模块组合成最终运行程序的地方。
+
+你不需要死记“Composition Root”这个名词，但要理解：
+
+```text
+main.py 应该更偏组装
+而不是塞满业务细节
+```
+
+---
+
+## 12.10 重构完成后一定要做“回归测试”
+
+重构的目标不是增加新功能。
+
+所以保存后重新启动：
+
+```bash
+uvicorn app.main:app --reload --port 8001
+```
+
+打开 `/docs`。
+
+确认仍然存在：
+
+```text
+GET  /
+POST /responses
+POST /responses/reset
+```
+
+再测试：
+
+1. 普通回答还能工作；
+2. 同 session 还能继续上下文；
+3. Reset 还能清掉上下文。
+
+如果行为和重构前一样，说明这次 Refactor 成功。
+
+---
+
+### 第 12 章检查清单
+
+```text
+[ ] app/api/routes.py 已创建
+[ ] app/services/response_service.py 已创建
+[ ] APIRouter 能正常加载
+[ ] main.py 只负责应用组装
+[ ] 普通模型调用仍然成功
+[ ] Reset 仍然成功
+[ ] 能画出 Route → Service → LLM/DB 的调用关系
+```
+
+### 本章小练习
+
+在 `routes.py` 增加：
+
+```python
+@router.get("/health")
+def health():
+    return {
+        "status": "ok"
+    }
+```
+
+不要修改 Service。
+
+思考：
+
+> 为什么这个简单健康检查不需要经过 `response_service.py`？
+
+因为它没有复杂业务流程，只是返回服务状态。
+
+### 你现在应该能回答
+
+> 为什么真实项目经常有 `api/`、`services/`、`infra/` 等目录？它们是不是只是为了显得专业？
+
+---
+
+# 第 13 章：`async / await`、异常处理和日志 —— 开始像真正后端一样运行
+
+> **本章目标**：真正理解前面出现的 `async/await`，并让后端发生错误时既能给用户合理响应，又能给开发者留下足够日志。  
+> **完成效果**：模型请求使用异步网络调用；API 出错返回 500 JSON；Terminal 能看到有用日志。  
+> **核心知识**：Event Loop、I/O、Coroutine、HTTPException、Logging、Traceback。
+
+我们从第 8 章已经开始写：
 
 ```python
 async def
 await
 ```
 
-这一章把它系统化，并给 API 加错误处理：
+当时只是为了先让代码跑起来。
 
-```python
-try:
-    ...
-except Exception:
-    logger.exception("模型调用失败")
-    raise HTTPException(
-        status_code=500,
-        detail="模型调用失败",
-    )
-```
-
-日志比到处 `print()` 更适合真实服务：
-
-```text
-DEBUG
-INFO
-WARNING
-ERROR
-CRITICAL
-```
-
-Agent 后面尤其会记录：
-
-```python
-logger.info("Agent step=%s", step + 1)
-logger.info("执行工具 name=%s arguments=%s", name, arguments)
-```
-
-不要记录 API Key。
+这一章把这两个词真正讲清楚一层。
 
 ---
 
-# 第 14 章：流式输出 —— 为什么回答可以一点点出现
+## 13.1 为什么调用模型特别适合异步？
 
-> **本章目标**：实现 Responses API Streaming + SSE。  
-> **完成效果**：终端/前端能一块一块收到模型文本。  
-> **核心知识**：stream、event、`response.output_text.delta`、SSE、`yield`。
-
-普通请求：
+调用模型时，程序会经历：
 
 ```text
-模型全部生成
+发送 HTTP 请求
 ↓
-一次性返回
+等待网络
+↓
+服务端排队 / 推理
+↓
+等待网络返回
 ```
 
-流式请求：
+其中大量时间是在“等”。
+
+假设同时来了两个用户：
 
 ```text
-生成一点
+用户 A → 模型请求 → 等待 5 秒
+用户 B → 也想请求
+```
+
+如果所有工作都用阻塞式思路粗暴处理，服务器并发能力会受到影响。
+
+异步的核心价值之一就是：
+
+> 当一个任务在等待 I/O 时，让事件循环有机会处理其他任务。
+
+---
+
+## 13.2 一个生活化类比
+
+同步等待很像：
+
+```text
+你去餐厅点菜
 ↓
-返回一点
+站在厨房门口盯着厨师
+↓
+菜没做好之前什么也不干
+```
+
+异步更像：
+
+```text
+点菜
+↓
+拿到号码
+↓
+等待期间去处理别的事情
+↓
+菜好了再回来继续
+```
+
+它不是“让模型计算本身突然变快”。
+
+而是让：
+
+```text
+等待 I/O 的时间
+```
+
+更容易被利用。
+
+---
+
+## 13.3 `async def` 是什么？
+
+普通函数：
+
+```python
+def hello():
+    return "hello"
+```
+
+异步函数：
+
+```python
+async def hello():
+    return "hello"
+```
+
+调用异步函数时，它会产生一个需要被事件循环执行的 coroutine。
+
+在 FastAPI Route 里：
+
+```python
+@router.post("/responses")
+async def create_response(...):
+    ...
+```
+
+FastAPI / ASGI Server 会帮我们管理这套异步执行环境。
+
+---
+
+## 13.4 `await` 是什么？
+
+例如：
+
+```python
+response = await client.responses.create(...)
+```
+
+可以先读成：
+
+> 等这个异步网络操作完成；等待期间允许事件循环去做别的可运行任务。
+
+注意常见规则：
+
+```python
+await ...
+```
+
+一般要出现在：
+
+```python
+async def ...
+```
+
+里面。
+
+如果乱写可能遇到：
+
+```text
+SyntaxError: 'await' outside async function
+```
+
+---
+
+## 13.5 为什么 `await` 会一路向上传播？
+
+假设：
+
+```python
+async def call_model():
+    response = await client.responses.create(...)
+```
+
+调用它的 Service 也要：
+
+```python
+async def respond(...):
+    response = await call_model()
+```
+
+调用 Service 的 Route 再：
+
+```python
+async def create_response(...):
+    reply = await respond(...)
+```
+
+于是形成：
+
+```text
+FastAPI async Route
+        ↓ await
+Service async function
+        ↓ await
+LLM async function
+        ↓ await
+网络 API
+```
+
+这就是为什么大型 Python Web 项目里经常到处看到 `async`。
+
+---
+
+## 13.6 SQLite 现在还是同步的，为什么？
+
+你会发现 `app/db.py` 还是：
+
+```python
+sqlite3.connect(...)
+```
+
+它是同步 API。
+
+这在我们的**小型教学项目**里可以接受，因为数据库操作非常短小，重点是先看清结构。
+
+但生产项目流量高、数据库操作复杂时，你需要进一步考虑：
+
+```text
+异步数据库驱动
+连接池
+把阻塞操作放在线程池
+PostgreSQL
+```
+
+所以不要把本教程理解成：
+
+> “只要用了 async，所有代码就自动完全异步了。”
+
+这是一个值得保留的工程边界意识。
+
+---
+
+## 13.7 现在给 Route 加异常处理
+
+真实 API 不应该在模型调用失败时只给用户一大坨 Python Traceback。
+
+打开：
+
+```text
+app/api/routes.py
+```
+
+导入：
+
+```python
+import logging
+
+from fastapi import APIRouter, HTTPException
+```
+
+创建 logger：
+
+```python
+logger = logging.getLogger(__name__)
+```
+
+把 `/responses` 改成：
+
+```python
+@router.post("/responses")
+async def create_response(request: ResponseRequest):
+    try:
+        reply = await respond(
+            request.session_id,
+            request.input,
+        )
+
+        return {
+            "output": reply
+        }
+
+    except Exception:
+        logger.exception(
+            "Responses API调用失败 session_id=%s",
+            request.session_id,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="模型调用失败",
+        )
+```
+
+---
+
+## 13.8 `try / except` 在这里解决什么？
+
+假设发生：
+
+```text
+API Key 失效
+模型名写错
+第三方服务 500
+网络断开
+```
+
+异常会从：
+
+```text
+llm.py
+↑
+response_service.py
+↑
+routes.py
+```
+
+一路抛回来。
+
+Route 是 HTTP 世界和 Python 世界的边界之一。
+
+所以这里把异常转换成用户更容易处理的 HTTP 响应：
+
+```json
+{
+  "detail": "模型调用失败"
+}
+```
+
+HTTP 状态码：
+
+```text
+500
+```
+
+与此同时，真正的错误详情仍然留在日志里给开发者看。
+
+---
+
+## 13.9 为什么使用 `logger.exception()`？
+
+```python
+logger.exception("Responses API调用失败")
+```
+
+和普通：
+
+```python
+logger.error(...)
+```
+
+相比，一个重要优势是：
+
+> 在 `except` 块中，`logger.exception()` 会把当前异常的 Traceback 一起记录出来。
+
+所以开发者能看到类似：
+
+```text
+ERROR | ... | Responses API调用失败
+Traceback (most recent call last):
+...
+AuthenticationError: ...
+```
+
+而用户不需要看到这些内部细节。
+
+---
+
+## 13.10 在 `app/main.py` 配置日志格式
+
+顶部：
+
+```python
+import logging
+```
+
+增加：
+
+```python
+logging.basicConfig(
+    level=logging.INFO,
+    format=(
+        "%(asctime)s | %(levelname)s | "
+        "%(name)s | %(message)s"
+    ),
+)
+```
+
+其中：
+
+```text
+asctime
+→ 时间
+
+levelname
+→ INFO / WARNING / ERROR
+
+name
+→ 哪个 Python 模块写出的日志
+
+message
+→ 你的日志正文
+```
+
+---
+
+## 13.11 日志级别先认识这几个
+
+```text
+DEBUG
+→ 很细的调试信息
+
+INFO
+→ 正常运行中的关键步骤
+
+WARNING
+→ 有问题，但程序也许还能继续
+
+ERROR
+→ 某个操作已经失败
+
+CRITICAL
+→ 非常严重的系统级故障
+```
+
+后面的 Agent 特别适合：
+
+```python
+logger.info(
+    "Agent step=%s",
+    step + 1,
+)
+```
+
+以及：
+
+```python
+logger.info(
+    "执行工具 name=%s arguments=%s",
+    tool_name,
+    tool_arguments,
+)
+```
+
+---
+
+## 13.12 为什么不用 `print()` 就好了？
+
+学习阶段 `print()` 完全可以用。
+
+但是长期运行的服务需要：
+
+```text
+统一格式
+日志级别
+过滤
+写文件 / 集中采集
+追踪模块来源
+```
+
+Logging 更适合这种需求。
+
+所以可以记成：
+
+```text
+print
+→ 临时调试很方便
+
+logging
+→ 长期运行服务的标准工具
+```
+
+---
+
+## 13.13 现在日志会自动写进文件吗？
+
+不会。
+
+我们目前：
+
+```python
+logging.basicConfig(...)
+```
+
+默认主要输出到进程的标准错误流，也就是你运行 Uvicorn 的 Terminal 中。
+
+除非以后明确配置：
+
+```text
+FileHandler
+filename=...
+日志平台
+```
+
+否则不要去项目里寻找一个“自动生成的 log 文件”。
+
+---
+
+## 13.14 为什么 `python -c` 测试时 INFO 日志有时不显示？
+
+我们的日志配置写在：
+
+```text
+app/main.py
+```
+
+如果你执行：
+
+```bash
+python -c "from app.llm import ..."
+```
+
+你直接导入的是 `app.llm`，不一定会执行 `app.main`。
+
+于是：
+
+```python
+logging.basicConfig(level=logging.INFO)
+```
+
+没有运行。
+
+测试时可以临时：
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+```
+
+这解释了一个很常见的困惑：
+
+> “代码里明明有 logger.info，为什么我什么都看不到？”
+
+---
+
+## 13.15 日志里不要随便写什么？
+
+尤其不要记录：
+
+```text
+API Key
+密码
+Token
+Cookie
+完整的敏感用户数据
+```
+
+例如绝对不要：
+
+```python
+logger.info("API_KEY=%s", API_KEY)
+```
+
+即使日志不上传 GitHub，它也可能被：
+
+```text
+日志平台收集
+团队成员读取
+CI 保存
+截图分享
+```
+
+---
+
+## 13.16 故意制造一次错误，练习看 Traceback
+
+你可以临时把 `.env` 中模型名改成一个不存在的值，例如：
+
+```env
+MODEL_NAME=this-model-does-not-exist
+```
+
+保存后调用：
+
+```text
+POST /responses
+```
+
+你应该观察两个地方。
+
+Swagger / 客户端：
+
+```json
+{
+  "detail": "模型调用失败"
+}
+```
+
+Terminal：
+
+```text
+ERROR
+Traceback...
+模型 / API 相关真实错误
+```
+
+测试完成以后**立刻恢复正确 MODEL_NAME**。
+
+这个练习比只看成功结果更重要，因为真实开发的大量时间就是在学会读错误。
+
+---
+
+### 第 13 章检查清单
+
+```text
+[ ] 能解释 async def 的第一层含义
+[ ] 能解释 await 的第一层含义
+[ ] 知道 await 为什么会沿调用链向上传播
+[ ] /responses 有 try / except
+[ ] 出错会返回 HTTP 500
+[ ] logger.exception 会记录 Traceback
+[ ] logging.basicConfig 配置了 INFO 和格式
+[ ] 知道当前日志默认在 Terminal，不是自动写文件
+[ ] 知道不能把 API Key 记进日志
+```
+
+### 本章小练习
+
+给 `/responses` 增加两条 INFO：
+
+```python
+logger.info(
+    "收到模型请求 session_id=%s",
+    request.session_id,
+)
+```
+
+以及请求成功后的：
+
+```python
+logger.info(
+    "模型请求完成 session_id=%s",
+    request.session_id,
+)
+```
+
+然后观察一次成功请求的日志顺序。
+
+### 你现在应该能回答
+
+> 用户看到的错误信息和开发者日志为什么不应该完全一样？
+
+---
+
+# 第 14 章：流式输出 —— 为什么模型回答可以一点点“冒出来”？
+
+> **本章目标**：把“一次性返回完整答案”升级成“边生成边返回”。  
+> **完成效果**：使用 curl `-N` 调 `/responses/stream`，可以持续看到 SSE 数据块。  
+> **核心知识**：Responses API Streaming、Event、Async Generator、`yield`、SSE、`StreamingResponse`。
+
+![Responses API Streaming + SSE](docs/images/streaming-sse.svg)
+
+到目前为止，普通 `/responses` 的体验是：
+
+```text
+用户提交
+↓
+等待
+↓
+等待
+↓
+模型全部生成完成
+↓
+一次性出现完整回答
+```
+
+短回答问题不大。
+
+但如果模型要生成很长内容，用户可能好几秒什么都看不到。
+
+流式输出希望变成：
+
+```text
+模型生成一点
+↓
+服务器马上转发一点
+↓
+客户端马上显示一点
 ↓
 继续生成
 ```
 
-Responses API：
+这就是聊天产品常见的“文字逐步出现”。
 
-```python
-stream = await client.responses.create(
-    model=MODEL_NAME,
-    input=user_input,
-    stream=True,
-)
+---
+
+## 14.1 Streaming 不是“把一句话手工切成很多段”
+
+我们不是先等待完整答案：
+
+```text
+完整回答 = 1000 字
 ```
 
-读取文本增量：
+然后 Python 自己切成：
+
+```text
+100 字 + 100 字 + ...
+```
+
+真正 Streaming 是：
+
+> **模型服务本身在生成过程中就持续发送事件。**
+
+我们的程序只是在不断读取这些事件，并继续往客户端转发。
+
+---
+
+## 14.2 在 `app/llm.py` 增加流式模型调用
+
+最终项目里增加：
+
+```python
+async def create_model_stream(
+    input_data,
+    *,
+    instructions: str = DEFAULT_INSTRUCTIONS,
+    previous_response_id: str | None = None,
+):
+    kwargs = {
+        "model": MODEL_NAME,
+        "instructions": instructions,
+        "input": input_data,
+        "stream": True,
+    }
+
+    if previous_response_id:
+        kwargs["previous_response_id"] = (
+            previous_response_id
+        )
+
+    return await client.responses.create(**kwargs)
+```
+
+和普通版本相比，最明显的是：
+
+```python
+"stream": True
+```
+
+它告诉 Responses API：
+
+> 不要只在最终完成时给我结果，请返回流式事件。
+
+---
+
+## 14.3 返回的已经不再是一个普通完整 Response
+
+普通调用：
+
+```python
+response = await create_model_response(...)
+```
+
+然后：
+
+```python
+response.output_text
+```
+
+流式调用则是：
+
+```python
+stream = await create_model_stream(...)
+```
+
+然后不断：
 
 ```python
 async for event in stream:
-    if event.type == "response.output_text.delta":
-        print(event.delta)
+    ...
 ```
 
-FastAPI 再用：
+这里第一次出现：
+
+```text
+事件流
+```
+
+的感觉。
+
+不同 event 代表不同事情。
+
+我们当前最关心两个：
+
+```text
+response.output_text.delta
+→ 新产生了一小段文本
+
+response.completed
+→ 这一整个 Response 完成了
+```
+
+---
+
+## 14.4 在 Service 中一块一块读取文本
+
+打开：
+
+```text
+app/services/response_service.py
+```
+
+顶部增加：
 
 ```python
-StreamingResponse(..., media_type="text/event-stream")
+from app.llm import (
+    create_model_response,
+    create_model_stream,
+)
 ```
 
-把增量继续转发给浏览器。
+再增加：
+
+```python
+async def stream_respond(
+    session_id: str,
+    user_input: str,
+):
+    previous_response_id = get_previous_response_id(
+        session_id
+    )
+
+    save_message(
+        session_id,
+        "user",
+        user_input,
+    )
+
+    stream = await create_model_stream(
+        user_input,
+        previous_response_id=previous_response_id,
+    )
+
+    full_reply = ""
+    completed_response_id = None
+
+    async for event in stream:
+        if event.type == "response.output_text.delta":
+            full_reply += event.delta
+            yield event.delta
+
+        elif event.type == "response.completed":
+            completed_response_id = event.response.id
+
+    save_message(
+        session_id,
+        "assistant",
+        full_reply,
+    )
+
+    if completed_response_id:
+        set_previous_response_id(
+            session_id,
+            completed_response_id,
+        )
+```
+
+这是这一章最关键的一段。
+
+---
+
+## 14.5 为什么同时需要 `yield` 和 `full_reply`？
+
+假设模型依次产生：
+
+```text
+"AI"
+" Agent"
+" 是一种"
+" 可以使用工具的系统"
+```
+
+我们希望发生两件事。
+
+第一：每一块马上发给客户端：
+
+```python
+yield event.delta
+```
+
+第二：最后数据库里仍然要保存一条完整 assistant 消息。
+
+所以：
+
+```python
+full_reply += event.delta
+```
+
+会逐渐变成：
+
+```text
+AI
+AI Agent
+AI Agent 是一种
+AI Agent 是一种可以使用工具的系统
+```
+
+最终保存完整：
+
+```python
+save_message(
+    session_id,
+    "assistant",
+    full_reply,
+)
+```
+
+这就是图里下面那条并行逻辑：
+
+```text
+每个 delta
+├─ yield 给前端
+└─ 拼进 full_reply
+             ↓
+           最终存 DB
+```
+
+---
+
+## 14.6 `yield` 和 `return` 到底有什么不同？
+
+普通函数：
+
+```python
+def get_answer():
+    return "hello"
+```
+
+执行到 `return` 后，函数基本就结束了。
+
+而生成器：
+
+```python
+def numbers():
+    yield 1
+    yield 2
+    yield 3
+```
+
+可以理解成：
+
+```text
+先给 1
+↓
+暂停在这里
+↓
+下次继续
+↓
+给 2
+↓
+继续
+```
+
+我们的：
+
+```python
+async def stream_respond(...):
+```
+
+里面又有 `yield`，所以它是一个**异步生成器**。
+
+它特别适合：
+
+```text
+网络流
+文件流
+持续事件
+```
+
+这种“一块一块产出”的数据。
+
+---
+
+## 14.7 FastAPI 为什么还要再做一次 Streaming？
+
+现在模型流已经到了你的 Python：
+
+```text
+Responses API
+↓
+stream_respond()
+```
+
+但用户浏览器连接的是：
+
+```text
+你的 FastAPI
+```
+
+不是模型供应商。
+
+所以 FastAPI 还要把流继续往外转发：
+
+```text
+Responses API stream
+↓
+Python async generator
+↓
+FastAPI StreamingResponse
+↓
+浏览器 / curl
+```
+
+---
+
+## 14.8 什么是 SSE？
+
+SSE：
+
+```text
+Server-Sent Events
+```
+
+可以先理解成：
+
+> 在一个保持打开的 HTTP 响应中，服务器不断向客户端发送文本事件。
+
+一个最简单的 SSE event：
+
+```text
+data: hello
+
+```
+
+注意最后通常有：
+
+```text
+\n\n
+```
+
+也就是一个空行，表示这一条事件结束。
+
+---
+
+## 14.9 在 Route 中增加 `/responses/stream`
+
+打开：
+
+```text
+app/api/routes.py
+```
+
+增加：
+
+```python
+import json
+```
+
+以及：
+
+```python
+from fastapi.responses import StreamingResponse
+```
+
+Service import 增加：
+
+```python
+stream_respond
+```
+
+然后 Route：
+
+```python
+@router.post("/responses/stream")
+async def create_streaming_response(
+    request: ResponseRequest,
+):
+    async def event_generator():
+        try:
+            async for chunk in stream_respond(
+                request.session_id,
+                request.input,
+            ):
+                data = json.dumps(
+                    {"delta": chunk},
+                    ensure_ascii=False,
+                )
+
+                yield f"data: {data}\n\n"
+
+            yield "data: [DONE]\n\n"
+
+        except Exception:
+            logger.exception(
+                "流式Responses调用失败 session_id=%s",
+                request.session_id,
+            )
+
+            yield (
+                'event: error\n'
+                'data: {"message":"模型调用失败"}\n\n'
+            )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+    )
+```
+
+代码看起来突然多了，但只做三件事：
+
+```text
+1. 从 Service 获取 chunk
+2. 把 chunk 包成 SSE 文本
+3. StreamingResponse 持续发给客户端
+```
+
+---
+
+## 14.10 为什么要 `json.dumps()`？
+
+这里：
+
+```python
+{"delta": chunk}
+```
+
+是一个 Python `dict` 对象。
+
+而：
+
+```python
+json.dumps(
+    {"delta": chunk},
+    ensure_ascii=False,
+)
+```
+
+得到的是 JSON 格式的**字符串**。
+
+肉眼可能看起来几乎一样。
+
+最清楚的实验：
+
+```python
+import json
+
+value = {"delta": "你好"}
+text = json.dumps(value, ensure_ascii=False)
+
+print(type(value))
+print(type(text))
+```
+
+输出：
+
+```text
+<class 'dict'>
+<class 'str'>
+```
+
+所以：
+
+```text
+Python dict
+↓ json.dumps
+JSON 字符串
+↓
+网络文本
+```
+
+反方向：
+
+```python
+json.loads(...)
+```
+
+是：
+
+```text
+JSON 字符串
+↓
+Python 对象
+```
+
+后面 Tool arguments 会再次遇到这个知识点。
+
+---
+
+## 14.11 `ensure_ascii=False` 是干什么的？
+
+如果有中文：
+
+```text
+你好
+```
+
+不加合适设置时，JSON 序列化结果可能以 Unicode escape 的形式表现，例如：
+
+```text
+\u4f60\u597d
+```
+
+我们使用：
+
+```python
+ensure_ascii=False
+```
+
+让中文更直接地保持为：
+
+```text
+你好
+```
+
+对调试和 SSE 输出更友好。
+
+---
+
+## 14.12 `StreamingResponse` 在告诉 FastAPI 什么？
+
+普通 Route：
+
+```python
+return {
+    "output": reply
+}
+```
+
+意味着：
+
+```text
+我现在有完整结果，可以一次性返回
+```
+
+而：
+
+```python
+return StreamingResponse(
+    event_generator(),
+    media_type="text/event-stream",
+)
+```
+
+是在告诉 FastAPI：
+
+> “不要等我先准备一个完整 JSON。请随着这个生成器产生数据，持续往 HTTP 响应中发送。”
+
+---
+
+## 14.13 用 curl 测试流式接口
+
+保持后端运行。
+
+新开一个 Terminal：
+
+```bash
+curl -N -X POST \
+  http://127.0.0.1:8001/responses/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id":"stream-test",
+    "input":"请用三句话解释什么是 AI Agent"
+  }'
+```
+
+这里新出现：
+
+```text
+-N
+```
+
+它告诉 curl：
+
+> 尽量不要把收到的数据缓冲很久再显示，而是持续输出。
+
+你可能看到类似：
+
+```text
+data: {"delta": "AI"}
+
+data: {"delta": " Agent"}
+
+data: {"delta": " 是一种"}
+
+...
+
+data: [DONE]
+```
+
+不同模型 / 供应商每个 delta 有多长可能不同。
+
+有的一个字，有的一小段，都正常。
+
+---
+
+## 14.14 为什么 `/docs` 不一定是观察 Streaming 的最佳地方？
+
+Swagger 很适合：
+
+```text
+普通 JSON 请求
+普通 JSON 响应
+```
+
+但真正观察“数据是不是一块一块到达”，Terminal 的：
+
+```bash
+curl -N
+```
+
+通常更直观。
+
+后面真正前端也会自己处理流式 Response。
+
+---
+
+## 14.15 流式请求结束后，数据库里保存什么？
+
+我们的设计是：
+
+```text
+user 消息
+→ 请求开始时保存
+
+assistant 消息
+→ stream 完成后保存完整 full_reply
+
+latest response id
+→ response.completed 后更新
+```
+
+所以流式输出并不意味着数据库要保存几十条：
+
+```text
+assistant | A
+assistant | I
+assistant |  Agent
+```
+
+最终仍然希望是一条完整消息。
+
+---
+
+## 14.16 一个当前实现的边界：流中途报错怎么办？
+
+教学版本里，如果流已经开始、随后模型服务异常：
+
+```text
+用户消息可能已经保存
+assistant 完整消息可能还没有保存
+```
+
+这是正常的第一版工程取舍。
+
+更完整的生产系统可能增加：
+
+```text
+消息状态 pending / completed / failed
+保存 partial output
+重试策略
+断线恢复
+客户端取消
+```
+
+我们现在先不把这些复杂度一次性引入。
+
+但你要知道：
+
+> **“能 Streaming” 和 “生产级 Streaming” 之间还有很多工程工作。**
+
+---
+
+### 第 14 章检查清单
+
+```text
+[ ] llm.py 有 create_model_stream()
+[ ] 模型请求设置 stream=True
+[ ] 能识别 response.output_text.delta
+[ ] 能识别 response.completed
+[ ] stream_respond 使用 async for
+[ ] 能解释 yield 和 return 的区别
+[ ] Route 使用 StreamingResponse
+[ ] media_type 是 text/event-stream
+[ ] 能解释 SSE 为什么需要 data: ... 和空行
+[ ] curl -N 能持续看到数据
+[ ] 知道 full_reply 为什么仍然需要累积
+```
+
+### 本章小练习
+
+在：
+
+```python
+if event.type == "response.output_text.delta":
+```
+
+里面临时增加：
+
+```python
+print(repr(event.delta))
+```
+
+观察模型每次到底返回多大一块。
+
+测试完成后删除这个 `print()`。
+
+### 你现在应该能回答
+
+> 为什么模型已经支持 Streaming，我们的 FastAPI 还要使用 `StreamingResponse`？
+
+一个完整回答应该是：
+
+> 模型流只到达后端 Python；浏览器连接的是我们的 FastAPI，所以后端还必须把收到的增量继续以流式 HTTP 响应转发给客户端。
 
 ---
 
@@ -3352,9 +3724,9 @@ E2B execution.text = None
 
 OpenAI：
 
-- Responses / migration: https://developers.openai.com/api/docs/guides/migrate-to-responses
-- Conversation state: https://developers.openai.com/api/docs/guides/conversation-state
-- Function calling: https://developers.openai.com/api/docs/guides/function-calling
+- Responses API Reference: https://developers.openai.com/api/reference/resources/responses/methods/create
+- Function Calling: https://developers.openai.com/api/docs/guides/function-calling
+- Conversation State: https://developers.openai.com/api/docs/guides/conversation-state
 - Streaming Responses: https://developers.openai.com/api/docs/guides/streaming-responses
 
 E2B：
