@@ -1,15 +1,6 @@
-# python 虚拟环境
 .venv/
-# python 运行时缓存
-__pycache__/
-*.py[cod]
-#环境变量和密钥
 .env
-
-#编辑器配置
+__pycache__/
+*.pyc
+chat.db
 .vscode/
-.idea
-
-#操作系统生成的文件
-.DS_Store
-Thumbs.db
