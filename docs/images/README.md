@@ -9,6 +9,8 @@
 - `tool-anatomy.svg`：Python 函数、Tool Definition、function_call、Executor 的关系
 - `tool-calling-loop.svg`：Tool Calling 与 Agent Loop 的整体闭环
 - `agent-loop-steps.svg`：Agent Loop 每一轮发生什么
+- `sandbox-boundary.svg`：为什么模型生成的代码要放进隔离 Sandbox
+- `frontend-e2e.svg`：浏览器 → FastAPI → Agent → Tool → E2B → 浏览器的完整端到端流程
 - `final-ui-example.svg`：最小前端界面示意
 
 统一风格：
