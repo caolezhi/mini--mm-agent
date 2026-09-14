@@ -1,6 +1,8 @@
 # GitHub 截图清单
 
-仓库已经包含概念流程图和一个静态界面示意图。正式发布教程时，最好再补 3 张你本地真实运行截图。
+仓库已经包含统一风格的 SVG 概念图和静态界面示意图。正式公开教程时，最好再补 **3 张你本地真实运行截图**，让读者确认这些功能确实跑通。
+
+> 截图前先检查画面里没有 `.env`、API Key、Token、Cookie 或其他秘密。
 
 ## 1. FastAPI `/docs`
 
@@ -18,6 +20,7 @@ http://127.0.0.1:8001/docs
 
 截图中尽量包含：
 
+- `GET /`
 - `POST /responses`
 - `POST /responses/stream`
 - `POST /responses/reset`
@@ -29,7 +32,15 @@ http://127.0.0.1:8001/docs
 docs/images/swagger.png
 ```
 
-## 2. Agent Tool Calling 日志
+这张图证明：
+
+```text
+FastAPI 路由已经完整加载
+```
+
+---
+
+## 2. Agent Tool Calling / E2B 日志
 
 执行一个必须调用 `run_python` 的任务，例如：
 
@@ -41,8 +52,8 @@ docs/images/swagger.png
 
 ```text
 Agent step=1
-执行工具 name=run_python ...
-工具执行完成 ...
+执行工具 name=run_python arguments={'code': '...'}
+工具执行完成 name=run_python result=333383335000
 Agent step=2
 ```
 
@@ -52,7 +63,17 @@ Agent step=2
 docs/images/agent-log.png
 ```
 
-截图前注意不要让 `.env`、API Key、Token 或其他秘密出现在画面里。
+这张截图最重要的价值是证明：
+
+```text
+模型不是“嘴上说用了 Python”
+而是真的产生 function_call
+→ Python Executor
+→ E2B
+→ 真实工具结果
+```
+
+---
 
 ## 3. 最终网页
 
@@ -68,10 +89,50 @@ python3 -m http.server 3000 --directory frontend
 http://127.0.0.1:3000
 ```
 
-输入一个真实任务，等 Agent 回答后截图，保存为：
+建议截图时包含：
+
+- `Mini Agent` 标题；
+- `Session: xxxxxxxx`；
+- `新会话` 按钮；
+- 一个真实用户任务；
+- Agent 的最终回答。
+
+例如任务：
+
+```text
+请使用 Python 工具计算前 30 个斐波那契数，并告诉我第 30 个是多少
+```
+
+建议保存为：
 
 ```text
 docs/images/final-ui.png
 ```
 
-然后把 README 中的界面示意图替换为真实截图。
+之后可以把主 README 中：
+
+```markdown
+![Mini Agent 最小前端示意](docs/images/final-ui-example.svg)
+```
+
+替换成真实截图：
+
+```markdown
+![Mini Agent 最终运行效果](docs/images/final-ui.png)
+```
+
+---
+
+# 截图风格建议
+
+为了让 GitHub 首页更整洁：
+
+```text
+浏览器截图尽量裁掉无关标签页
+Terminal 不要截太多空白
+统一使用浅色或统一深色主题
+不要包含私人路径、密钥或账号信息
+图像宽度尽量一致
+```
+
+概念图负责解释原理，真实截图负责证明项目真的跑通。两种图的作用不同，最好都保留。
